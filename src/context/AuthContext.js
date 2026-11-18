@@ -44,8 +44,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const updateProfile = useCallback(async ({ name }) => {
+    const { user: me } = await api.patch('auth/me', { name });
+    setUser(me);
+    return me;
+  }, []);
+
+  // `data` is base64 without the data: prefix.
+  const uploadAvatar = useCallback(async (type, data) => {
+    const { user: me } = await api.post('auth/me/avatar', { type, data });
+    setUser(me);
+    return me;
+  }, []);
+
+  const removeAvatar = useCallback(async () => {
+    const { user: me } = await api.del('auth/me/avatar');
+    setUser(me);
+    return me;
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, checking, refresh, login, register, logout }}>
+    <AuthContext.Provider value={{ user, checking, refresh, login, register, logout, updateProfile, uploadAvatar, removeAvatar }}>
       {children}
     </AuthContext.Provider>
   );

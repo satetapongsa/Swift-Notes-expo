@@ -6,13 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Image,
+  TextInput,
+  ActivityIndicator,
+  Platform,
   SafeAreaView,
   StatusBar,
   Alert
 } from 'react-native';
 import {
   ChevronLeft,
+  Camera,
   User,
   Sun,
   Bell,
@@ -30,13 +33,99 @@ import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../lib/confirm';
 import { column, MAX_WIDTH } from '../lib/responsive';
 import { FEATURES } from '../config/features';
+import Avatar from '../components/Avatar';
 
 const SettingsScreen = ({ navigation }) => {
   const { isDark, toggleTheme, colors, typography } = useTheme();
   const { trash, passlockEnabled, setPasslockEnabled } = useNotes();
   const [faceIdEnabled, setFaceIdEnabled] = useState(true);
 
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile, uploadAvatar, removeAvatar } = useAuth();
+
+  // --- profile: name and photo ---
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [profileMessage, setProfileMessage] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  const startEditName = () => {
+    setNameDraft(user?.name || '');
+    setProfileMessage('');
+    setEditingName(true);
+  };
+
+  const saveName = async () => {
+    const name = nameDraft.trim();
+    if (!name) {
+      setProfileMessage('Name cannot be empty');
+      return;
+    }
+    try {
+      await updateProfile({ name });
+      setEditingName(false);
+      setProfileMessage('');
+    } catch (e) {
+      setProfileMessage(e.message);
+    }
+  };
+
+  // Crops the picked image to a square and shrinks it to 256px before upload.
+  const resizeImage = file =>
+    new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const side = Math.min(img.width, img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        canvas
+          .getContext('2d')
+          .drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, 256, 256);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('That file is not an image we can read'));
+      };
+      img.src = url;
+    });
+
+  const pickPhoto = () => {
+    if (Platform.OS !== 'web') {
+      setProfileMessage('Changing your photo works in the web app for now.');
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      setPhotoBusy(true);
+      setProfileMessage('');
+      try {
+        await uploadAvatar('image/jpeg', await resizeImage(file));
+      } catch (e) {
+        setProfileMessage(e.message);
+      } finally {
+        setPhotoBusy(false);
+      }
+    };
+    input.click();
+  };
+
+  const deletePhoto = async () => {
+    setPhotoBusy(true);
+    try {
+      await removeAvatar();
+    } catch (e) {
+      setProfileMessage(e.message);
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
 
   const handleLogout = async () => {
     const ok = await confirmAction('Logout', 'Are you sure you want to logout?', 'Logout');
@@ -89,16 +178,47 @@ const SettingsScreen = ({ navigation }) => {
         {/* Profile */}
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200' }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={[styles.editIconContainer, { backgroundColor: colors.primary }]}>
-              <Pencil size={12} color={colors.white} />
+            <Avatar user={user} size={100} />
+            <TouchableOpacity
+              style={[styles.editIconContainer, { backgroundColor: colors.primary }]}
+              onPress={pickPhoto}
+              disabled={photoBusy}
+              accessibilityLabel={user?.avatarUrl ? 'Change profile photo' : 'Add profile photo'}
+            >
+              {photoBusy ? <ActivityIndicator size="small" color={colors.white} /> : <Camera size={14} color={colors.white} />}
             </TouchableOpacity>
           </View>
-          <Text style={[styles.profileName, { color: colors.text }]}>{user?.name}</Text>
+          {user?.avatarUrl && (
+            <TouchableOpacity onPress={deletePhoto} disabled={photoBusy} style={{ marginBottom: 8 }}>
+              <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>Remove photo</Text>
+            </TouchableOpacity>
+          )}
+          {editingName ? (
+            <View style={styles.nameEditRow}>
+              <TextInput
+                style={[styles.nameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
+                value={nameDraft}
+                onChangeText={setNameDraft}
+                onSubmitEditing={saveName}
+                maxLength={80}
+                autoFocus
+                accessibilityLabel="Your name"
+              />
+              <TouchableOpacity style={[styles.nameButton, { backgroundColor: colors.primary }]} onPress={saveName}>
+                <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.nameButton} onPress={() => setEditingName(false)}>
+                <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={startEditName} style={styles.nameRow} accessibilityLabel="Edit your name">
+              <Text style={[styles.profileName, { color: colors.text }]}>{user?.name}</Text>
+              <Pencil size={14} color={colors.textSecondary} style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          )}
           <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
+          {profileMessage ? <Text style={{ color: colors.danger, marginTop: 8 }}>{profileMessage}</Text> : null}
         </View>
 
         {/* Account & Preference */}
@@ -200,6 +320,29 @@ const SettingsScreen = ({ navigation }) => {
 
 
 const styles = StyleSheet.create({
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nameEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    minWidth: 180,
+  },
+  nameButton: {
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginLeft: 8,
+  },
   container: {
     flex: 1,
   },
