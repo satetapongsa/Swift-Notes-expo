@@ -27,7 +27,10 @@ import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
 import { useAuth } from '../context/AuthContext';
 import { AIService } from '../lib/AIService';
+import { api } from '../lib/api';
+import { merge3 } from '../../shared/merge';
 import { column, MAX_WIDTH } from '../lib/responsive';
+import { FEATURES } from '../config/features';
 
 // How often an open note checks for edits made by other people.
 const LIVE_POLL_MS = 2000;
@@ -35,6 +38,17 @@ const LIVE_POLL_MS = 2000;
 const SAVE_DELAY_MS = 600;
 // Remote changes are only applied when the local user has been idle this long.
 const IDLE_BEFORE_REMOTE_MS = 1500;
+// Someone counts as typing if they edited within this window.
+const TYPING_WINDOW_MS = 3000;
+const TEXT_FIELDS = ['title', 'content'];
+
+const AVATAR_COLORS = ['#FF9500', '#5856D6', '#34C759', '#FF3B30', '#007AFF', '#AF52DE', '#FF2D55'];
+
+function avatarColor(id = '') {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
 
 function timeAgo(iso) {
   if (!iso) return '';
@@ -46,10 +60,10 @@ function timeAgo(iso) {
 }
 
 const NoteEditorScreen = ({ route, navigation }) => {
-  const { note: initialNote, folderId, workspace: workspaceParam } = route.params || {};
+  const { note: initialNote, folderId, workspace: workspaceParam, openShare: openShareOnStart } = route.params || {};
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { addNote, updateNote, getNote, workspaces, listNoteShares, shareNote, unshareNote } = useNotes();
+  const { addNote, updateNote, workspaces, listNoteShares, shareNote, unshareNote } = useNotes();
 
   const [noteId, setNoteId] = useState(initialNote?.id || null);
   const [title, setTitle] = useState(initialNote?.title || '');
@@ -74,90 +88,128 @@ const NoteEditorScreen = ({ route, navigation }) => {
   const workspaceId = meta?.workspaceId || workspaceParam?.id || null;
   const workspace = workspaces.find(w => w.id === workspaceId) || workspaceParam || null;
 
-  // Refs keep the save/poll loop consistent without re-creating timers on every keystroke.
+  // `base` is the last version confirmed by the server. Local edits are whatever differs from it.
+  const base = useRef({
+    version: initialNote?.version || 0,
+    title: initialNote?.title || '',
+    content: initialNote?.content || '',
+  });
+  const local = useRef({ title: initialNote?.title || '', content: initialNote?.content || '' });
   const noteIdRef = useRef(noteId);
-  const versionRef = useRef(initialNote?.version || 0);
-  const dirty = useRef({});
   const lastEditAt = useRef(0);
   const saving = useRef(null);
   const saveTimer = useRef(null);
+  const [viewers, setViewers] = useState([]);
+
+  const setLocal = (field, value) => {
+    local.current = { ...local.current, [field]: value };
+    if (field === 'title') setTitle(value);
+    else setContent(value);
+  };
+
+  const pendingFields = () => TEXT_FIELDS.filter(f => local.current[f] !== base.current[f]);
+
+  // Takes the server's copy as the new base and keeps any edits typed since `sent` went out.
+  const adopt = useCallback((note, sent = {}) => {
+    TEXT_FIELDS.forEach(field => {
+      const mine = local.current[field];
+      let next;
+      if (sent[field] !== undefined) {
+        next = mine === sent[field] ? note[field] : merge3(sent[field], mine, note[field]);
+      } else {
+        next = mine === base.current[field] ? note[field] : merge3(base.current[field], mine, note[field]);
+      }
+      if (next !== mine) setLocal(field, next);
+    });
+    base.current = { version: note.version, title: note.title, content: note.content };
+    setMeta(note);
+  }, []);
 
   const save = useCallback(async () => {
     clearTimeout(saveTimer.current);
-    if (saving.current) await saving.current;
-    const changes = dirty.current;
-    if (!Object.keys(changes).length) return;
-    dirty.current = {};
+    if (saving.current) {
+      await saving.current;
+    }
+    const fields = pendingFields();
+    if (!fields.length) return;
+    const sent = {};
+    fields.forEach(f => { sent[f] = local.current[f]; });
 
     const run = (async () => {
       setStatus('Saving…');
       try {
-        let saved;
+        let note;
         if (noteIdRef.current) {
-          saved = await updateNote(noteIdRef.current, changes);
+          const baseText = {};
+          fields.forEach(f => { baseText[f] = base.current[f]; });
+          note = await updateNote(noteIdRef.current, {
+            ...sent,
+            baseVersion: base.current.version,
+            base: baseText,
+          });
         } else {
-          saved = await addNote({
-            title: changes.title ?? '',
-            content: changes.content ?? '',
+          note = await addNote({
+            title: local.current.title,
+            content: local.current.content,
             folderId,
             workspaceId: workspaceParam?.id,
           });
-          noteIdRef.current = saved.id;
-          setNoteId(saved.id);
+          noteIdRef.current = note.id;
+          setNoteId(note.id);
         }
-        versionRef.current = saved.version;
-        setMeta(saved);
+        adopt(note, sent);
         setStatus('Saved');
       } catch (e) {
-        // Put the unsaved changes back so the next save retries them.
-        dirty.current = { ...changes, ...dirty.current };
         setStatus(`Not saved: ${e.message}`);
       }
     })();
     saving.current = run;
     await run;
     saving.current = null;
-  }, [addNote, updateNote, folderId, workspaceParam]);
+    // Anything typed while that save was in flight goes out next.
+    if (pendingFields().length) saveTimer.current = setTimeout(save, SAVE_DELAY_MS);
+  }, [addNote, updateNote, folderId, workspaceParam, adopt]);
 
   const edit = (field, value) => {
     if (readOnly) return;
-    if (field === 'title') setTitle(value);
-    else setContent(value);
-    dirty.current = { ...dirty.current, [field]: value };
+    setLocal(field, value);
     lastEditAt.current = Date.now();
     setStatus('Editing…');
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(save, SAVE_DELAY_MS);
   };
 
-  // Live updates: pull the latest version and apply it when we are not typing.
+  // Live updates: report presence, pull the latest version and merge it in.
   useEffect(() => {
     if (!noteId) return undefined;
     let stopped = false;
     const tick = async () => {
-      if (saving.current || Object.keys(dirty.current).length) return;
-      if (Date.now() - lastEditAt.current < IDLE_BEFORE_REMOTE_MS) return;
       try {
-        const latest = await getNote(noteId);
-        if (stopped || Object.keys(dirty.current).length) return;
-        setMeta(latest);
-        if (latest.version > versionRef.current) {
-          versionRef.current = latest.version;
-          setTitle(latest.title);
-          setContent(latest.content);
+        const typing = Date.now() - lastEditAt.current < TYPING_WINDOW_MS;
+        const { note: latest, viewers: others } = await api.post(`notes/${noteId}/presence`, { editing: typing });
+        if (stopped) return;
+        setViewers(others);
+        if (saving.current || latest.version <= base.current.version) {
+          setMeta(latest);
+          return;
+        }
+        if (pendingFields().length) {
+          save(); // the server merges our pending edits with theirs
+        } else if (Date.now() - lastEditAt.current >= IDLE_BEFORE_REMOTE_MS) {
+          adopt(latest);
         }
       } catch (e) {
-        if (e.status === 404) {
-          setStatus('This note was deleted or is no longer shared with you');
-        }
+        if (e.status === 404) setStatus('This note was deleted or is no longer shared with you');
       }
     };
+    tick();
     const timer = setInterval(tick, LIVE_POLL_MS);
     return () => {
       stopped = true;
       clearInterval(timer);
+      api.del(`notes/${noteId}/presence`).catch(() => {});
     };
-  }, [noteId, getNote]);
+  }, [noteId, save, adopt]);
 
   // Save anything pending when leaving the screen.
   useEffect(() => () => {
@@ -171,6 +223,38 @@ const NoteEditorScreen = ({ route, navigation }) => {
   };
 
   // --- sharing ---
+
+  // --- tags ---
+  const [tagDraft, setTagDraft] = useState('');
+  const tags = meta?.tags || [];
+
+  const saveTags = async next => {
+    await save(); // make sure the note exists first
+    if (!noteIdRef.current) {
+      setStatus('Write something first, then add tags.');
+      return;
+    }
+    try {
+      const note = await updateNote(noteIdRef.current, { tags: next });
+      setMeta(note);
+    } catch (e) {
+      setStatus(`Not saved: ${e.message}`);
+    }
+  };
+
+  const addTag = () => {
+    const tag = tagDraft.trim().replace(/^#/, '');
+    setTagDraft('');
+    if (!tag || tags.some(t => t.toLowerCase() === tag.toLowerCase())) return;
+    saveTags([...tags, tag.slice(0, 40)]);
+  };
+
+  const removeTag = tag => saveTags(tags.filter(t => t !== tag));
+
+  useEffect(() => {
+    if (openShareOnStart) openShare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openShare = async () => {
     setShareError('');
@@ -235,9 +319,14 @@ const NoteEditorScreen = ({ route, navigation }) => {
   };
 
   const editedByOther = meta?.updatedBy && meta.updatedBy !== user?.id;
-  const statusText = status && status !== 'Saved'
+  const typingNames = viewers.filter(v => v.editing).map(v => v.name.split(' ')[0]);
+  const statusText = status && status !== 'Saved' && status !== 'Editing…'
     ? status
-    : editedByOther
+    : typingNames.length
+      ? `${typingNames.join(', ')} ${typingNames.length > 1 ? 'are' : 'is'} typing…`
+      : status === 'Editing…'
+        ? status
+        : editedByOther
       ? `Edited by ${meta.updatedByName} ${timeAgo(meta.updatedAt)}`
       : status;
 
@@ -261,16 +350,16 @@ const NoteEditorScreen = ({ route, navigation }) => {
         </View>
 
         <View style={styles.headerRight}>
-          {workspace?.members?.length > 0 && (
-            <View style={styles.activeMembers}>
-               {workspace.members.slice(0, 3).map((member, i) => (
-                 <View key={member.id} style={[styles.activeAvatar, { backgroundColor: member.avatar, marginLeft: i === 0 ? 0 : -8, borderColor: colors.card }]}>
-                    <Text style={styles.activeAvatarText}>{member.name[0]}</Text>
+          {viewers.length > 0 && (
+            <View style={styles.activeMembers} accessibilityLabel={`Also here: ${viewers.map(v => v.name).join(', ')}`}>
+               {viewers.slice(0, 3).map((v, i) => (
+                 <View key={v.id} style={[styles.activeAvatar, { backgroundColor: avatarColor(v.id), marginLeft: i === 0 ? 0 : -8, borderColor: v.editing ? colors.success : colors.card }]}>
+                    <Text style={styles.activeAvatarText}>{v.name[0]}</Text>
                  </View>
                ))}
-               {workspace.members.length > 3 && (
+               {viewers.length > 3 && (
                  <View style={[styles.activeAvatar, { backgroundColor: colors.placeholder, marginLeft: -8, borderColor: colors.card }]}>
-                    <Text style={styles.activeAvatarText}>+{workspace.members.length - 3}</Text>
+                    <Text style={styles.activeAvatarText}>+{viewers.length - 3}</Text>
                  </View>
                )}
             </View>
@@ -373,17 +462,21 @@ const NoteEditorScreen = ({ route, navigation }) => {
         <TouchableOpacity style={styles.toolbarItem} onPress={openShare}>
           <UserPlus size={20} color={colors.textSecondary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarItem} onPress={handleAISummarize} disabled={readOnly}>
-          <BrainCircuit size={20} color={colors.primary} />
-        </TouchableOpacity>
+        {FEATURES.aiAssistant && (
+          <TouchableOpacity style={styles.toolbarItem} onPress={handleAISummarize} disabled={readOnly}>
+            <BrainCircuit size={20} color={colors.primary} />
+          </TouchableOpacity>
+        )}
         <Text style={[styles.statusText, { color: colors.textSecondary }]} numberOfLines={1}>
           {readOnly ? 'View only' : statusText}
         </Text>
 
-        <TouchableOpacity style={[styles.aiButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AINote', { title, content })}>
-          <Sparkles size={18} color={colors.white} />
-          <Text style={styles.aiButtonText}>AI Assistant</Text>
-        </TouchableOpacity>
+        {FEATURES.aiAssistant && (
+          <TouchableOpacity style={[styles.aiButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AINote', { title, content })}>
+            <Sparkles size={18} color={colors.white} />
+            <Text style={styles.aiButtonText}>AI Assistant</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -400,6 +493,31 @@ const NoteEditorScreen = ({ route, navigation }) => {
             editable={!readOnly}
             multiline
           />
+          <View style={styles.tagRow}>
+            {tags.map(tag => (
+              <View key={tag} style={[styles.tagChip, { backgroundColor: colors.primary + '14' }]}>
+                <Text style={{ color: colors.primary, fontWeight: '600' }}>#{tag}</Text>
+                {!readOnly && (
+                  <TouchableOpacity onPress={() => removeTag(tag)} accessibilityLabel={`Remove tag ${tag}`} style={{ marginLeft: 6 }}>
+                    <X size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {!readOnly && (
+              <TextInput
+                style={[styles.tagInput, { color: colors.text, borderColor: colors.border }]}
+                placeholder="Add tag"
+                placeholderTextColor={colors.placeholder}
+                value={tagDraft}
+                onChangeText={setTagDraft}
+                onSubmitEditing={addTag}
+                onBlur={addTag}
+                autoCapitalize="none"
+                returnKeyType="done"
+              />
+            )}
+          </View>
           <TextInput
             style={[styles.contentInput, { color: colors.textSecondary }]}
             placeholder="Write something in English or ภาษาไทย..."
@@ -471,6 +589,32 @@ const NoteEditorScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: -8,
+    marginBottom: 20,
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagInput: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    minWidth: 90,
+    marginBottom: 8,
+    fontSize: 14,
+  },
   statusText: {
     flex: 1,
     fontSize: 12,
