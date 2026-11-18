@@ -46,6 +46,17 @@
         height: 100%;
         flex: 1;
       }
+      /* Content still scrolls; the bars are just not drawn. */
+      * {
+        scrollbar-width: none;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+      }
+      textarea {
+        overflow: hidden;
+        resize: none;
+      }
     </style>
   </head>
 

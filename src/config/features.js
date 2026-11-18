@@ -2,7 +2,9 @@
 // Their code stays in the project for future work; while a flag is false
 // the entry points are hidden so users only see what really works.
 export const FEATURES = {
-  // AI summary and AI assistant. Answers are mocked; needs a server-side model call.
+  // AI summary of a note (Groq, through /api/notes/:id/summary).
+  aiSummary: true,
+  // Free-form AI chat about a note. Answers are still mocked.
   aiAssistant: false,
   // Passcode lock and Face ID. The settings are not saved and nothing is locked yet.
   appLock: false,
