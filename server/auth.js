@@ -63,7 +63,7 @@ async function currentUser(req) {
   const token = parseCookies(req)[COOKIE_NAME];
   if (!token || token.length > 100) return null;
   const rows = await db()(
-    `SELECT u.id, u.email, u.name
+    `SELECT u.id, u.email, u.name, u.avatar_updated_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [hashToken(token)],
@@ -77,8 +77,13 @@ async function requireUser(req) {
   return user;
 }
 
+// URL of a user's profile photo, or null when they have not uploaded one.
+function avatarUrl(id, updatedAt) {
+  return updatedAt ? `/api/users/${id}/avatar?v=${new Date(updatedAt).getTime()}` : null;
+}
+
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name };
+  return { id: u.id, email: u.email, name: u.name, avatarUrl: avatarUrl(u.id, u.avatar_updated_at) };
 }
 
 module.exports = {
@@ -89,4 +94,5 @@ module.exports = {
   currentUser,
   requireUser,
   publicUser,
+  avatarUrl,
 };

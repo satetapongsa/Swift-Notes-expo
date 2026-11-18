@@ -70,7 +70,7 @@ async function login(req, res) {
     throw new HttpError(429, 'Too many failed attempts. Wait 15 minutes and try again.');
   }
 
-  const users = await sql('SELECT id, email, name, password_hash FROM users WHERE email = $1', [mail]);
+  const users = await sql('SELECT id, email, name, password_hash, avatar_updated_at FROM users WHERE email = $1', [mail]);
   const user = users[0];
   const ok = await verifyPassword(body.password, user && user.password_hash);
 
