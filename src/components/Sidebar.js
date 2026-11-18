@@ -21,11 +21,19 @@ import {
   X
 } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const Sidebar = ({ navigation, onClose, currentRoute }) => {
   const { isDark, toggleTheme, colors, typography } = useTheme();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    onClose();
+    await logout();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
 
   const menuItems = [
     { label: 'All Notes', icon: <FileText size={22} />, route: 'Main' },
@@ -59,8 +67,8 @@ const Sidebar = ({ navigation, onClose, currentRoute }) => {
             style={styles.avatar} 
           />
           <View style={styles.profileText}>
-            <Text style={[styles.profileName, { color: colors.text }]}>Alex Johnson</Text>
-            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>alex.j@swiftnotes.io</Text>
+            <Text style={[styles.profileName, { color: colors.text }]}>{user?.name}</Text>
+            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X size={24} color={colors.textSecondary} />
@@ -112,7 +120,7 @@ const Sidebar = ({ navigation, onClose, currentRoute }) => {
               onValueChange={toggleTheme}
             />
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={() => navigation.replace('Login')}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <LogOut size={22} color={colors.danger} />
             <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
           </TouchableOpacity>

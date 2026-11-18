@@ -26,25 +26,21 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
+import { useAuth } from '../context/AuthContext';
+import { confirmAction } from '../lib/confirm';
 
 const SettingsScreen = ({ navigation }) => {
   const { isDark, toggleTheme, colors, typography } = useTheme();
   const { trash, passlockEnabled, setPasslockEnabled } = useNotes();
   const [faceIdEnabled, setFaceIdEnabled] = useState(true);
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: () => navigation.replace('Login')
-        }
-      ]
-    );
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    const ok = await confirmAction('Logout', 'Are you sure you want to logout?', 'Logout');
+    if (!ok) return;
+    await logout();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const SettingItem = ({ icon, label, value, onPress, badge, showSwitch, switchValue, onSwitchChange }) => (
@@ -99,8 +95,8 @@ const SettingsScreen = ({ navigation }) => {
               <Pencil size={12} color={colors.white} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.profileName, { color: colors.text }]}>Alex Johnson</Text>
-          <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>alex.johnson@example.com</Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>{user?.name}</Text>
+          <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
         </View>
 
         {/* Account & Preference */}
