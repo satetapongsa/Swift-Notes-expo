@@ -12,6 +12,7 @@ import { Colors, Typography } from '../theme/theme';
 import { Lock, X, Delete } from 'lucide-react-native';
 import { useNotes } from '../context/NoteContext';
 import { useTheme } from '../theme/ThemeContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const PasscodeScreen = ({ navigation }) => {
   const { colors, isDark } = useTheme();
@@ -54,7 +55,7 @@ const PasscodeScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, column(MAX_WIDTH.form)]}>
         <Text style={[styles.title, { color: colors.text }]}>Create a passcode</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Enter a 4-digit passcode to secure your account and personal data.</Text>
 

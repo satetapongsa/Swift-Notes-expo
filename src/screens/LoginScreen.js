@@ -13,6 +13,7 @@ import {
 import { Colors, Typography } from '../theme/theme';
 import { Mail, Lock, Eye, EyeOff, FileText, Pen } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
@@ -45,7 +46,7 @@ const LoginScreen = ({ navigation }) => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}>
-        <View style={styles.content}>
+        <View style={[styles.content, column(MAX_WIDTH.form)]}>
           {/* Logo Section */}
           <View style={styles.logoContainer}>
             <View style={styles.logoBox}>

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Colors, Typography } from '../theme/theme';
 import { Fingerprint } from 'lucide-react-native';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const BiometricScreen = ({ navigation }) => {
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -45,7 +46,7 @@ const BiometricScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      <View style={styles.content}>
+      <View style={[styles.content, column(MAX_WIDTH.form)]}>
         <Text style={styles.title}>SwiftNotes Locked</Text>
         <Text style={styles.subtitle}>Secure access required</Text>
 

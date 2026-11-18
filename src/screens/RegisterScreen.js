@@ -14,6 +14,7 @@ import {
 import { Colors, Typography } from '../theme/theme';
 import { Mail, Lock, User, Eye, EyeOff, ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const EMAIL_RE = /^[^s@]+@[^s@]+.[^s@]+$/;
 
@@ -63,7 +64,7 @@ const RegisterScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.form)]} showsVerticalScrollIndicator={false}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ChevronLeft size={24} color={Colors.text} />
           </TouchableOpacity>
