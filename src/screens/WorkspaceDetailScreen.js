@@ -31,9 +31,11 @@ const WorkspaceDetailScreen = ({ route, navigation }) => {
   const { workspace: workspaceParam, id } = route.params || {};
   const { colors, isDark } = useTheme();
   const { workspaces, notes, updateNote, addNote } = useNotes();
+  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Find workspace by ID if it's coming from a deep link
-  const workspace = workspaceParam || workspaces.find(ws => ws.id === id);
+  const workspace = workspaces.find(ws => ws.id === (workspaceParam?.id || id)) || workspaceParam;
 
   if (!workspace) {
     return (
@@ -46,14 +48,12 @@ const WorkspaceDetailScreen = ({ route, navigation }) => {
     );
   }
   
-  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Filter notes belonging to this workspace
   const workspaceNotes = notes.filter(note => note.workspaceId === workspace.id);
 
   // Filter notes NOT in this workspace to add them
-  const availableNotes = notes.filter(note => note.workspaceId !== workspace.id && 
+  const availableNotes = notes.filter(note => note.workspaceId !== workspace.id && note.access === 'owner' &&
     (note.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
      note.content?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -184,8 +184,8 @@ const WorkspaceDetailScreen = ({ route, navigation }) => {
 
               <TouchableOpacity 
                 style={[styles.createNewBtn, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  const newNote = addNote({ title: 'New Shared Note', content: '', workspaceId: workspace.id });
+                onPress={async () => {
+                  const newNote = await addNote({ title: 'New Shared Note', content: '', workspaceId: workspace.id });
                   setShowAddNoteModal(false);
                   navigation.navigate('Editor', { note: newNote, workspace });
                 }}

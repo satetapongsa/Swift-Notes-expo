@@ -48,12 +48,15 @@ import {
 import Sidebar from '../components/Sidebar';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
+import { useAuth } from '../context/AuthContext';
+import { confirmAction } from '../lib/confirm';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SharedScreen = ({ navigation }) => {
   const { colors, typography, isDark } = useTheme();
-  const { workspaces, addWorkspace, addMemberToWorkspace, updateWorkspace, deleteWorkspace } = useNotes();
+  const { workspaces, notes, addWorkspace, addMemberToWorkspace, updateWorkspace, deleteWorkspace } = useNotes();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
@@ -66,39 +69,31 @@ const SharedScreen = ({ navigation }) => {
   const [newMemberName, setNewMemberName] = useState('');
   const [targetWsId, setTargetWsId] = useState(null);
 
-  const handleInviteConfirm = () => {
-    if (!newMemberName.trim() || !targetWsId) return;
+  const [inviteError, setInviteError] = useState('');
 
-    addMemberToWorkspace(targetWsId, newMemberName);
-    setNewMemberName('');
-    setShowInviteModal(false);
-    triggerToast('SUCCESS: Member invited!');
+  const handleInviteConfirm = async () => {
+    if (!newMemberName.trim() || !targetWsId) return;
+    setInviteError('');
+    try {
+      await addMemberToWorkspace(targetWsId, newMemberName.trim());
+      setNewMemberName('');
+      setShowInviteModal(false);
+      triggerToast('SUCCESS: Member invited!');
+    } catch (e) {
+      setInviteError(e.message);
+    }
   };
 
   const openInvite = (wsId) => {
     setTargetWsId(wsId);
     setNewMemberName('');
+    setInviteError('');
     setShowInviteModal(true);
   };
 
-  const [invitations, setInvitations] = useState([
-    {
-      id: 'i1',
-      sender: 'Sarah Miller',
-      workspaceName: 'Marketing Q4',
-      message: 'Join us to plan the next campaign!',
-      avatar: '#ffcc00',
-      time: '2h ago'
-    },
-    {
-      id: 'i2',
-      sender: 'Dev Somchai',
-      workspaceName: 'Core Backend',
-      message: 'Need your review on the API docs.',
-      avatar: '#4cd964',
-      time: '1d ago'
-    }
-  ]);
+  // Members are added directly by email, so there are no pending invitations yet.
+  const [invitations, setInvitations] = useState([]);
+
 
   // New Workspace Creation States
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -118,11 +113,17 @@ const SharedScreen = ({ navigation }) => {
 
   const [selectedWorkspace, setSelectedWorkspace] = useState(null);
 
-  const recentActivities = [
-    { id: '1', user: 'Alex (You)', action: 'added a note to', workspace: 'Project Alpha', time: '12m ago', icon: 'file-text' },
-    { id: '2', user: 'Somchai', action: 'joined', workspace: 'Core Backend', time: '1h ago', icon: 'user-plus' },
-    { id: '3', user: 'Nui', action: 'updated', workspace: 'Marketing Q4', time: '3h ago', icon: 'refresh-cw' },
-  ];
+  const recentActivities = notes
+    .filter(n => n.isShared)
+    .slice(0, 10)
+    .map(n => ({
+      id: n.id,
+      user: n.updatedBy === user?.id ? 'You' : n.updatedByName || n.ownerName,
+      action: 'updated',
+      workspace: n.title || 'Untitled note',
+      time: n.date,
+      icon: 'refresh-cw',
+    }));
 
   const handleAcceptInvite = (id) => {
     setInvitations(invitations.filter(i => i.id !== id));
@@ -134,18 +135,19 @@ const SharedScreen = ({ navigation }) => {
   };
 
 
-  const sharedNotes = [
-    {
-      id: 101,
-      title: 'Project Alpha Brief',
-      snippet: 'The goal of Project Alpha is to streamline our internal communication tools...',
-      sharedWith: '4 people'
-    }
-  ];
+  const sharedNotes = notes
+    .filter(n => n.isShared)
+    .map(n => ({
+      ...n,
+      title: n.title || 'Untitled note',
+      sharedWith: n.access === 'owner'
+        ? (n.shareCount ? `${n.shareCount} people` : 'workspace')
+        : `by ${n.ownerName}`,
+    }));
 
-  const handleCreateWorkspace = () => {
+  const handleCreateWorkspace = async () => {
     if (!newWsName.trim()) return;
-    addWorkspace({
+    await addWorkspace({
       name: newWsName,
       iconName: selectedWsIcon,
       color: selectedWsColor,
@@ -160,9 +162,16 @@ const SharedScreen = ({ navigation }) => {
     setShowWorkspaceMenu(true);
   };
 
-  const handleDeleteWorkspace = (id) => {
-    deleteWorkspace(id);
+  const handleDeleteWorkspace = async (id) => {
     setShowWorkspaceMenu(false);
+    const ws = workspaces.find(w => w.id === id);
+    const owner = ws?.role === 'Owner';
+    const ok = await confirmAction(
+      owner ? 'Delete workspace' : 'Leave workspace',
+      owner ? 'Notes stay with their owners, but members lose access.' : 'You will lose access to its notes.',
+      owner ? 'Delete' : 'Leave',
+    );
+    if (ok) await deleteWorkspace(id);
   };
 
   const toggleLinkSharing = () => {
@@ -250,9 +259,10 @@ const SharedScreen = ({ navigation }) => {
 
         {activeTab === 'all' && (
           <>
-            {/* Active Now Section */}
+            {/* Members of the most recent workspace */}
+            {workspaces.length > 0 && (
             <View style={styles.activeNowContainer}>
-              <Text style={[styles.sectionTitleTiny, { color: colors.textSecondary }]}>ACTIVE NOW</Text>
+              <Text style={[styles.sectionTitleTiny, { color: colors.textSecondary }]}>{workspaces[0].name.toUpperCase()} MEMBERS</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeAvatarsScroll}>
                 {workspaces[0].members.map(member => (
                   <View key={member.id} style={styles.activeMemberWrapper}>
@@ -271,6 +281,7 @@ const SharedScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </ScrollView>
             </View>
+            )}
 
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Collaborative Spaces</Text>
@@ -291,7 +302,7 @@ const SharedScreen = ({ navigation }) => {
                 return (
                   <RectButton
                     style={[styles.deleteAction, { backgroundColor: colors.danger }]}
-                    onPress={() => deleteWorkspace(ws.id)}
+                    onPress={() => handleDeleteWorkspace(ws.id)}
                   >
                     <Animated.View style={{ transform: [{ scale: trans }] }}>
                       <Trash2 size={24} color={colors.white} />
@@ -329,7 +340,7 @@ const SharedScreen = ({ navigation }) => {
                             <Text style={[styles.roleText, { color: ws.role === 'Owner' || ws.role === 'Admin' ? colors.primary : colors.textSecondary }]}>{ws.role}</Text>
                           </View>
                           <Text style={styles.sep}>•</Text>
-                          <Text style={[styles.activityText, { color: colors.success }]}>Active now</Text>
+                          <Text style={[styles.activityText, { color: colors.textSecondary }]}>{ws.members.length} members</Text>
                         </View>
                       </View>
                       <TouchableOpacity onPress={() => openWorkspaceMenu(ws)} style={styles.moreBtn}>
@@ -410,7 +421,7 @@ const SharedScreen = ({ navigation }) => {
         </View>
 
         {sharedNotes.map(note => (
-          <TouchableOpacity key={note.id} style={[styles.noteCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity key={note.id} style={[styles.noteCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => navigation.navigate('Editor', { note })}>
             <View style={styles.noteHeader}>
               <Text style={[styles.noteTitle, { color: colors.text }]}>{note.title}</Text>
               <TouchableOpacity onPress={() => setShowShareModal(true)}>
@@ -555,12 +566,12 @@ const SharedScreen = ({ navigation }) => {
             <View style={styles.memberHeader}>
               <Text style={[styles.memberSectionTitle, { color: colors.text }]}>Members</Text>
               <View style={[styles.memberBadgeSmall, { backgroundColor: colors.primary }]}>
-                <Text style={{ color: colors.white, fontSize: 10, fontWeight: '800' }}>{selectedWorkspace?.members.length}</Text>
+                <Text style={{ color: colors.white, fontSize: 10, fontWeight: '800' }}>{selectedWorkspace?.members?.length}</Text>
               </View>
             </View>
 
             <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
-              {selectedWorkspace?.members.map(member => (
+              {selectedWorkspace?.members?.map(member => (
                 <View key={member.id} style={styles.memberRow}>
                   <View style={[styles.avatarCircle, { backgroundColor: member.avatar }]}>
                     <Text style={{ fontWeight: '800', color: '#000' }}>{member.name[0]}</Text>
@@ -678,16 +689,19 @@ const SharedScreen = ({ navigation }) => {
               <Text style={[styles.inviteModalTitle, { color: colors.text }]}>Share Workspace</Text>
             </View>
 
-            <Text style={[styles.inviteInstruction, { color: colors.textSecondary }]}>Type the name of the colleague or friend you want to invite.</Text>
+            <Text style={[styles.inviteInstruction, { color: colors.textSecondary }]}>Enter the email your teammate signed up with.</Text>
 
             <TextInput
               style={[styles.inviteInput, { color: colors.text, borderColor: colors.border, backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
-              placeholder="Friend's Name"
+              placeholder="friend@email.com"
               placeholderTextColor={colors.placeholder}
               value={newMemberName}
               onChangeText={setNewMemberName}
+              autoCapitalize="none"
+              keyboardType="email-address"
               autoFocus
             />
+            {inviteError ? <Text style={{ color: colors.danger || '#FF3B30', marginTop: 8 }}>{inviteError}</Text> : null}
 
             <View style={styles.inviteActionRow}>
               <TouchableOpacity onPress={() => setShowInviteModal(false)} style={styles.cancelLink}>
