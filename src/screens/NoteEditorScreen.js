@@ -27,6 +27,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
 import { useAuth } from '../context/AuthContext';
 import { AIService } from '../lib/AIService';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 // How often an open note checks for edits made by other people.
 const LIVE_POLL_MS = 2000;
@@ -389,7 +390,7 @@ const NoteEditorScreen = ({ route, navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.editorContainer}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
           <TextInput
             style={[styles.titleInput, { color: colors.text }]}
             placeholder="Note Title"
@@ -635,6 +636,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
     padding: 24,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
@@ -721,6 +725,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   shareModalContent: {
+    maxWidth: 480,
     width: '100%',
     borderRadius: 24,
     padding: 24,

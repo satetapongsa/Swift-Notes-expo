@@ -28,6 +28,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
 import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../lib/confirm';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const SettingsScreen = ({ navigation }) => {
   const { isDark, toggleTheme, colors, typography } = useTheme();
@@ -83,7 +84,7 @@ const SettingsScreen = ({ navigation }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
         {/* Profile */}
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>

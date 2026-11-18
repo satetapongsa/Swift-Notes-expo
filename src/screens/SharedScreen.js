@@ -50,6 +50,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
 import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../lib/confirm';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -255,7 +256,7 @@ const SharedScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
 
         {activeTab === 'all' && (
           <>
@@ -889,6 +890,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bottomSheetContainer: {
+    maxWidth: 560,
+    alignSelf: 'center',
     width: '100%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
@@ -1012,6 +1015,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   actionSheet: {
+    maxWidth: 560,
+    alignSelf: 'center',
     width: '100%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
@@ -1087,6 +1092,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sidebarContainer: {
+    maxWidth: 340,
     width: '80%',
     height: '100%',
   },
@@ -1316,6 +1322,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   inviteModalCard: {
+    maxWidth: 480,
     width: '100%',
     borderRadius: 30,
     padding: 24,

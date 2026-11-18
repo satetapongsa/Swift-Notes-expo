@@ -23,6 +23,7 @@ import {
   Check
 } from 'lucide-react-native';
 import AIService from '../services/AIService';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const AINoteScreen = ({ route, navigation }) => {
   const { title, content } = route.params || {};
@@ -84,7 +85,7 @@ const AINoteScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
         <View style={styles.statusLabel}>
           <View style={[styles.dot, { backgroundColor: isLoading ? Colors.primary : Colors.success }]} />
           <Text style={[styles.statusText, { color: isLoading ? Colors.primary : Colors.success }]}>

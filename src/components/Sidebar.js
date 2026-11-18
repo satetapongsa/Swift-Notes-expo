@@ -132,7 +132,7 @@ const Sidebar = ({ navigation, onClose, currentRoute }) => {
 
 const createStyles = (colors, typography, isDark) => StyleSheet.create({
   container: {
-    width: SCREEN_WIDTH * 0.8,
+    width: '100%',
     height: '100%',
     elevation: 16,
     shadowColor: '#000',

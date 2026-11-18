@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '../theme/ThemeContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const AddFolderScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
@@ -77,7 +78,7 @@ const AddFolderScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
         <View style={[styles.folderCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <View style={[styles.iconPreview, { backgroundColor: selectedColor + '20' }]}>
              {getPreviewIcon()}

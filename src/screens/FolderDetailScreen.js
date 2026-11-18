@@ -11,6 +11,7 @@ import {
 import { ChevronLeft, FileText, MoreVertical, Plus } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const FolderDetailScreen = ({ route, navigation }) => {
   const { folder } = route.params;
@@ -62,7 +63,7 @@ const FolderDetailScreen = ({ route, navigation }) => {
         data={folderNotes}
         keyExtractor={item => item.id.toString()}
         renderItem={renderNoteItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, column(MAX_WIDTH.reading)]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <FileText size={60} color={colors.placeholder} opacity={0.3} />

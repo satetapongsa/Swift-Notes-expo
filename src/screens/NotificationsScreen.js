@@ -17,6 +17,7 @@ import {
   Users, 
   FileText 
 } from 'lucide-react-native';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const NotificationsScreen = ({ navigation }) => {
   const [masterToggle, setMasterToggle] = useState(true);
@@ -55,7 +56,7 @@ const NotificationsScreen = ({ navigation }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>PUSH NOTIFICATIONS</Text>
         <View style={styles.card}>
           <View style={styles.item}>

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useNotes } from '../context/NoteContext';
 import { useTheme } from '../theme/ThemeContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const TrashScreen = ({ navigation }) => {
   const { colors, isDark } = useTheme();
@@ -86,7 +87,7 @@ const TrashScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
         <View style={[styles.infoBox, { backgroundColor: colors.primary + '10' }]}>
           <Info size={20} color={colors.primary} style={{ marginRight: 15 }} />
           <Text style={[styles.infoText, { color: colors.text }]}>Deleted items will stay here until you empty the trash.</Text>
@@ -290,6 +291,9 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   passcodeCard: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
     padding: 30,
     borderRadius: 30,
     elevation: 20,

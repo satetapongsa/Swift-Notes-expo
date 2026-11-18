@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
+import { column, MAX_WIDTH } from '../lib/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -129,7 +130,7 @@ const WorkspaceDetailScreen = ({ route, navigation }) => {
           data={workspaceNotes}
           keyExtractor={item => item.id.toString()}
           renderItem={renderNoteItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, column(MAX_WIDTH.reading)]}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <FileText size={64} color={colors.placeholder} opacity={0.3} />
@@ -335,6 +336,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
     height: '80%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
