@@ -8,84 +8,37 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  Image,
   ActivityIndicator
 } from 'react-native';
 import { Colors, Typography } from '../theme/theme';
 import { Mail, Lock, Eye, EyeOff, FileText, Pen } from 'lucide-react-native';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSignIn = useCallback(async () => {
-    if (!email || !password) {
-      alert('Please enter email and password');
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
       return;
     }
-
+    setError('');
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.log('Login Error:', error.message);
-        if (error.message.includes('Email not confirmed')) {
-          alert('กรุณายืนยันอีเมลใน Inbox ของคุณก่อนเข้าใช้งานนะครับ');
-        } else {
-          alert('ล็อกอินไม่สำเร็จ: ' + error.message);
-        }
-      } else {
-        console.log('Login Success:', data);
-        navigation.replace('Main');
-      }
+      await login(email.trim(), password);
+      setPassword('');
+      navigation.replace('Main');
     } catch (e) {
-      console.log('Unexpected Error:', e);
-      alert('เกิดข้อผิดพลาดไม่คาดคิด กรุณาลองใหม่อีกครั้ง');
+      setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [navigation, email, password]);
-
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) alert('Google Login Error: ' + error.message);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) alert('Apple Login Error: ' + error.message);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [navigation, email, password, login]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -119,6 +72,7 @@ const LoginScreen = ({ navigation }) => {
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
+                  autoComplete="email"
                   keyboardType="email-address"
                 />
               </View>
@@ -136,6 +90,8 @@ const LoginScreen = ({ navigation }) => {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoComplete="current-password"
+                  onSubmitEditing={handleSignIn}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   {showPassword ? (
@@ -147,9 +103,7 @@ const LoginScreen = ({ navigation }) => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={styles.signInButton}
@@ -164,28 +118,6 @@ const LoginScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
 
-            <View style={styles.divider}>
-              <View style={styles.line} />
-              <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-              <View style={styles.line} />
-            </View>
-
-            <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton} activeOpacity={0.7} onPress={handleGoogleSignIn}>
-                <Image
-                  source={{uri: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png'}}
-                  style={styles.socialIcon}
-                />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} activeOpacity={0.7} onPress={handleAppleSignIn}>
-                <Image
-                  source={{uri: 'https://cdn-icons-png.flaticon.com/512/0/747.png'}}
-                  style={styles.socialIcon}
-                />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
 
@@ -201,6 +133,12 @@ const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.white,

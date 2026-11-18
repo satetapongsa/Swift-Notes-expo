@@ -9,97 +9,53 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator
 } from 'react-native';
 import { Colors, Typography } from '../theme/theme';
-import { Mail, Lock, User, Eye, EyeOff, ChevronLeft, CheckCircle2 } from 'lucide-react-native';
-import { supabase } from '../lib/supabase';
+import { Mail, Lock, User, Eye, EyeOff, ChevronLeft } from 'lucide-react-native';
+import { useAuth } from '../context/AuthContext';
+
+const EMAIL_RE = /^[^s@]+@[^s@]+.[^s@]+$/;
 
 const RegisterScreen = ({ navigation }) => {
+  const { register } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRegister = async () => {
-    // 1. ตรวจสอบข้อมูลครบไหม
-    if (!fullName || !email || !password || !confirmPassword) {
-      alert('กรุณากรอกข้อมูลให้ครบนะครับ');
+    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+      setError('กรุณากรอกข้อมูลให้ครบ');
       return;
     }
-
-    // 2. ตรวจสอบรูปแบบอีเมล (Email Regex)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      alert('รูปแบบอีเมลไม่ถูกต้องครับ กรุณาตรวจสอบอีกครั้ง');
+    if (!EMAIL_RE.test(email.trim())) {
+      setError('รูปแบบอีเมลไม่ถูกต้อง');
       return;
     }
-
-    // 3. ตรวจสอบรหัสผ่านตรงกันไหม
+    if (password.length < 8) {
+      setError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+      return;
+    }
     if (password !== confirmPassword) {
-      alert('รหัสผ่านไม่ตรงกันครับ');
+      setError('รหัสผ่านไม่ตรงกัน');
       return;
     }
 
-    if (password.length < 6) {
-      alert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวนะครับ');
-      return;
-    }
-
+    setError('');
     setLoading(true);
     try {
-      console.log('Registering user:', email);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (error) {
-        console.error('Registration Error:', error.message);
-        alert('สมัครไม่สำเร็จ: ' + error.message);
-      } else {
-        console.log('Registration Success:', data);
-        // วาร์ปเข้าหน้าหลักทันที! ทุกอย่างบันทึกในฐานข้อมูลแล้ว
-        navigation.replace('Main');
-      }
+      await register(fullName.trim(), email.trim(), password);
+      navigation.replace('Main');
     } catch (e) {
-      console.error('Unexpected Exception:', e);
-      alert('เกิดข้อผิดพลาดไม่คาดคิด กรุณาลองใหม่อีกครั้ง');
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   };
-
-  if (isSuccess) {
-    return (
-      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
-        <CheckCircle2 size={80} color={Colors.primary} />
-        <Text style={[styles.title, { marginTop: 20 }]}>ส่งอีเมลยืนยันแล้ว!</Text>
-        <Text style={[styles.subtitle, { textAlign: 'center', marginTop: 10 }]}>
-          เราส่งลิงก์ไปที่ {email} แล้วครับ กรุณาตรวจสอบใน Inbox หรือ Junk Mail เพื่อยืนยันตัวตนก่อนเข้าใช้งานนะครับ
-        </Text>
-        
-        <View style={{ width: '100%', marginTop: 30 }}>
-          <TouchableOpacity 
-            style={[styles.registerButton, { backgroundColor: Colors.primary }]}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.registerButtonText}>กลับหน้าล็อกอิน</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,6 +118,7 @@ const RegisterScreen = ({ navigation }) => {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoComplete="new-password"
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   {showPassword ? (
@@ -185,9 +142,12 @@ const RegisterScreen = ({ navigation }) => {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
+                  autoComplete="new-password"
                 />
               </View>
             </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.registerButton, { opacity: loading ? 0.7 : 1 }]}
@@ -215,6 +175,12 @@ const RegisterScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.white,

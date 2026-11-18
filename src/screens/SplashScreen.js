@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { 
   View, 
   Text, 
@@ -14,7 +15,8 @@ import { StickyNote } from 'lucide-react-native';
 const { width } = Dimensions.get('window');
 
 const SplashScreen = ({ navigation }) => {
-  console.log('SplashScreen.js: Component Rendering...');
+  const { user, checking } = useAuth();
+  const [animationDone, setAnimationDone] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -56,13 +58,15 @@ const SplashScreen = ({ navigation }) => {
       })
     ]).start();
 
-    // Navigate to Login after animation
-    const timer = setTimeout(() => {
-      navigation.replace('Login');
-    }, 3000);
-
+    const timer = setTimeout(() => setAnimationDone(true), 2500);
     return () => clearTimeout(timer);
   }, []);
+
+  // After the animation, go to the app if a session exists, otherwise to Login.
+  useEffect(() => {
+    if (!animationDone || checking) return;
+    navigation.replace(user ? 'Main' : 'Login');
+  }, [animationDone, checking, user, navigation]);
 
   const progressInterpolate = progressAnim.interpolate({
     inputRange: [0, 1],
