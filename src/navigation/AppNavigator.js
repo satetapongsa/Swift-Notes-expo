@@ -104,7 +104,16 @@ const AppNavigator = () => {
   };
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      linking={linking}
+      documentTitle={{
+        // Browser tab title, e.g. "Notes – Swift Notes".
+        formatter: (options, route) => {
+          const name = options?.title || route?.name;
+          return !name || ['Splash', 'Main'].includes(name) ? 'Swift Notes' : `${name} – Swift Notes`;
+        },
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
