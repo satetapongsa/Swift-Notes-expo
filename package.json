@@ -12,7 +12,8 @@
     "test": "jest",
     "build": "expo export -p web",
     "serve": "node scripts/dev-server.js",
-    "db:migrate": "node scripts/migrate.js"
+    "db:migrate": "node scripts/migrate.js",
+    "reset-password": "node scripts/reset-password.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "^55.0.9",
