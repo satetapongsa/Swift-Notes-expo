@@ -1,16 +1,11 @@
 /**
  * AIService.js
  * Central service to handle all AI-related logic in SwiftNote.
- * Ready for integration with Gemini API or other LLMs.
+ * Responses are mocked for now. A real model must be called from the server
+ * (an /api route) so that no API key ever ships in the app bundle.
  */
 
 class AIService {
-  constructor() {
-    // Replace with your actual API key
-    this.apiKey = 'YOUR_GEMINI_API_KEY';
-    this.endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-  }
-
   /**
    * Helper to simulate AI response delay and logic
    * In production, this will be a real fetch call.
