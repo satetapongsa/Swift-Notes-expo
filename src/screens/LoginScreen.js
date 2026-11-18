@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,14 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Colors, Typography } from '../theme/theme';
+import { useTheme } from '../theme/ThemeContext';
 import { Mail, Lock, Eye, EyeOff, FileText, Pen } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { column, MAX_WIDTH } from '../lib/responsive';
 
 const LoginScreen = ({ navigation }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,11 +84,11 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputCard}>
-                <Mail size={20} color={Colors.textSecondary} />
+                <Mail size={20} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   placeholder="name@company.com"
-                  placeholderTextColor={Colors.placeholder}
+                  placeholderTextColor={colors.placeholder}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -99,11 +102,11 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputCard}>
-                <Lock size={20} color={Colors.textSecondary} />
+                <Lock size={20} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor={Colors.placeholder}
+                  placeholderTextColor={colors.placeholder}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -112,9 +115,9 @@ const LoginScreen = ({ navigation }) => {
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   {showPassword ? (
-                    <EyeOff size={20} color={Colors.textSecondary} />
+                    <EyeOff size={20} color={colors.textSecondary} />
                   ) : (
-                    <Eye size={20} color={Colors.textSecondary} />
+                    <Eye size={20} color={colors.textSecondary} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -131,7 +134,7 @@ const LoginScreen = ({ navigation }) => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.signInButtonText}>Sign In</Text>
               )}
@@ -151,7 +154,7 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   warnText: {
     color: '#B26A00',
     fontSize: 13,
@@ -165,7 +168,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
@@ -177,12 +180,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 25,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
     elevation: 4,
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.2,
     shadowRadius: 5,
@@ -199,13 +202,15 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h1,
+    color: colors.text,
     fontSize: 28,
     marginBottom: 10,
   },
   subtitle: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 40,
   },
   form: {
@@ -216,25 +221,26 @@ const styles = StyleSheet.create({
   },
   label: {
     ...Typography.small,
+    color: colors.textSecondary,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     marginBottom: 8,
   },
   inputCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGray,
+    backgroundColor: colors.lightGray,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   input: {
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    color: Colors.text,
+    color: colors.text,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -242,25 +248,27 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 14,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   signInButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   signInButtonText: {
     ...Typography.title,
-    color: Colors.white,
+    color: colors.text,
+    color: '#FFFFFF',
   },
   divider: {
     flexDirection: 'row',
@@ -270,12 +278,13 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   dividerText: {
     ...Typography.small,
+    color: colors.textSecondary,
     marginHorizontal: 15,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   socialButtons: {
@@ -286,8 +295,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
-    borderColor: Colors.border,
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     height: 50,
@@ -300,6 +309,7 @@ const styles = StyleSheet.create({
   },
   socialButtonText: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -310,13 +320,15 @@ const styles = StyleSheet.create({
   },
   footerText: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   signUpText: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 14,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '800',
   },
 });

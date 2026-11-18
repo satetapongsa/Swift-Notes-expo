@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   View, 
@@ -10,11 +10,14 @@ import {
   Dimensions
 } from 'react-native';
 import { Colors, Typography } from '../theme/theme';
+import { useTheme } from '../theme/ThemeContext';
 import { StickyNote } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
 const SplashScreen = ({ navigation }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { user, checking } = useAuth();
   const [animationDone, setAnimationDone] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -75,7 +78,7 @@ const SplashScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <Animated.View 
         style={[
           styles.content, 
@@ -89,26 +92,26 @@ const SplashScreen = ({ navigation }) => {
         ]}
       >
         <View style={styles.logoContainer}>
-          <StickyNote size={80} color={Colors.white} strokeWidth={1.5} />
+          <StickyNote size={80} color="#FFFFFF" strokeWidth={1.5} />
         </View>
-        <Text style={styles.appName}>SwiftNotes</Text>
-        <Text style={styles.tagline}>Intelligent Capture. Creative Flow.</Text>
+        <Text style={styles.appName}>Swift Notes</Text>
+        <Text style={styles.tagline}>Write notes together, in real time.</Text>
       </Animated.View>
 
       <View style={styles.footer}>
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressBar, { width: progressInterpolate }]} />
         </View>
-        <Text style={styles.securedText}>SECURED WITH AI TECHNOLOGY</Text>
+        
       </View>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -119,27 +122,29 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 40,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
     // Premium Shadow
     elevation: 12,
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 15,
   },
   appName: {
     ...Typography.h1,
+    color: colors.text,
     fontSize: 42,
     fontWeight: '900',
-    color: '#1C1C1E',
+    color: colors.text,
     letterSpacing: -1,
   },
   tagline: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.text,
+    color: colors.textSecondary,
     marginTop: 8,
     fontSize: 16,
     fontWeight: '500',
@@ -154,21 +159,21 @@ const styles = StyleSheet.create({
   progressTrack: {
     width: '100%',
     height: 6,
-    backgroundColor: Colors.lightGray,
+    backgroundColor: colors.lightGray,
     borderRadius: 3,
     marginBottom: 20,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 3,
   },
   securedText: {
     fontSize: 11,
     letterSpacing: 2,
     fontWeight: '700',
-    color: Colors.placeholder,
+    color: colors.placeholder,
     textTransform: 'uppercase',
   },
 });

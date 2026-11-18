@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Colors, Typography } from '../theme/theme';
+import { useTheme } from '../theme/ThemeContext';
 import { Mail, Lock, User, Eye, EyeOff, ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { column, MAX_WIDTH } from '../lib/responsive';
@@ -19,6 +20,8 @@ import { column, MAX_WIDTH } from '../lib/responsive';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const RegisterScreen = ({ navigation }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { register } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -66,7 +69,7 @@ const RegisterScreen = ({ navigation }) => {
       >
         <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.form)]} showsVerticalScrollIndicator={false}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ChevronLeft size={24} color={Colors.text} />
+            <ChevronLeft size={24} color={colors.text} />
           </TouchableOpacity>
 
           <View style={styles.header}>
@@ -79,11 +82,11 @@ const RegisterScreen = ({ navigation }) => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
               <View style={styles.inputCard}>
-                <User size={20} color={Colors.textSecondary} />
+                <User size={20} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   placeholder="John Doe"
-                  placeholderTextColor={Colors.placeholder}
+                  placeholderTextColor={colors.placeholder}
                   value={fullName}
                   onChangeText={setFullName}
                 />
@@ -94,11 +97,11 @@ const RegisterScreen = ({ navigation }) => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputCard}>
-                <Mail size={20} color={Colors.textSecondary} />
+                <Mail size={20} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   placeholder="name@company.com"
-                  placeholderTextColor={Colors.placeholder}
+                  placeholderTextColor={colors.placeholder}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -111,11 +114,11 @@ const RegisterScreen = ({ navigation }) => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputCard}>
-                <Lock size={20} color={Colors.textSecondary} />
+                <Lock size={20} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor={Colors.placeholder}
+                  placeholderTextColor={colors.placeholder}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -123,9 +126,9 @@ const RegisterScreen = ({ navigation }) => {
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   {showPassword ? (
-                    <EyeOff size={20} color={Colors.textSecondary} />
+                    <EyeOff size={20} color={colors.textSecondary} />
                   ) : (
-                    <Eye size={20} color={Colors.textSecondary} />
+                    <Eye size={20} color={colors.textSecondary} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -135,11 +138,11 @@ const RegisterScreen = ({ navigation }) => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Confirm Password</Text>
               <View style={styles.inputCard}>
-                <Lock size={20} color={Colors.textSecondary} />
+                <Lock size={20} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor={Colors.placeholder}
+                  placeholderTextColor={colors.placeholder}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
@@ -156,7 +159,7 @@ const RegisterScreen = ({ navigation }) => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.registerButtonText}>Create Account</Text>
               )}
@@ -175,7 +178,7 @@ const RegisterScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
@@ -184,7 +187,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.lightGray,
+    backgroundColor: colors.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -205,13 +208,15 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h1,
+    color: colors.text,
     fontSize: 28,
     marginBottom: 10,
   },
   subtitle: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   form: {
     width: '100%',
@@ -221,42 +226,44 @@ const styles = StyleSheet.create({
   },
   label: {
     ...Typography.small,
+    color: colors.textSecondary,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     marginBottom: 8,
   },
   inputCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGray,
+    backgroundColor: colors.lightGray,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   input: {
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    color: Colors.text,
+    color: colors.text,
   },
   registerButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
     elevation: 2,
-    shadowColor: Colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   registerButtonText: {
     ...Typography.title,
-    color: Colors.white,
+    color: colors.text,
+    color: '#FFFFFF',
   },
   footer: {
     flexDirection: 'row',
@@ -265,13 +272,15 @@ const styles = StyleSheet.create({
   },
   footerText: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   signInText: {
     ...Typography.body,
+    color: colors.text,
     fontSize: 14,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '800',
   },
 });
