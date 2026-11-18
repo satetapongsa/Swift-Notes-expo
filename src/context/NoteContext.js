@@ -1,244 +1,285 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../lib/supabase';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import { api } from '../lib/api';
+import { useAuth } from './AuthContext';
 
 const NoteContext = createContext();
 
+// How often the app asks the server for changes made by other people.
+const SYNC_INTERVAL_MS = 3000;
+
+const DEFAULT_FOLDER = {
+  id: 'default',
+  name: 'All Notes',
+  iconName: 'folder',
+  color: '#007AFF',
+  modified: 'All your notes',
+  hasStar: true,
+};
+
+const AVATAR_COLORS = ['#FF9500', '#5856D6', '#34C759', '#FF3B30', '#007AFF', '#AF52DE', '#FF2D55'];
+
+function avatarColor(id = '') {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function capitalize(s) {
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Adds the display fields the screens expect.
+function decorateNote(n) {
+  const text = (n.content || '').replace(/\s+/g, ' ').trim();
+  return {
+    ...n,
+    snippet: text.slice(0, 140),
+    date: formatDate(n.updatedAt),
+    isPinned: n.pinned,
+    isShared: n.access !== 'owner' || n.shareCount > 0 || Boolean(n.workspaceId),
+  };
+}
+
+function decorateWorkspace(ws) {
+  return {
+    ...ws,
+    role: capitalize(ws.role),
+    members: (ws.members || []).map(m => ({ ...m, role: capitalize(m.role), avatar: avatarColor(m.id) })),
+  };
+}
+
 export const NoteProvider = ({ children }) => {
+  const { user } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
-  const [session, setSession] = useState(null);
-  const [folders, setFolders] = useState([
-    {
-      id: 'default',
-      name: 'All Notes',
-      iconName: 'folder',
-      color: '#007AFF',
-      modified: 'Modified now',
-      hasStar: true
-    }
-  ]);
-
-  const [notes, setNotes] = useState([]);
-  const [workspaces, setWorkspaces] = useState([]);
-
-
-  const [trash, setTrash] = useState({ workspaces: [], notes: [] });
+  const [rawNotes, setRawNotes] = useState([]);
+  const [rawFolders, setRawFolders] = useState([]);
+  const [rawWorkspaces, setRawWorkspaces] = useState([]);
   const [passcode, setPasscode] = useState(null);
-  const [passlockEnabled, setPasslockEnabled] = useState(false); // New Persistent State
+  const [passlockEnabled, setPasslockEnabled] = useState(false);
+  const cursor = useRef(null);
 
-  // 1. ตักตามสถานะการล็อกอิน (Auth Tracking)
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+  const applySync = useCallback(data => {
+    if (data.unchanged) return;
+    cursor.current = data.cursor;
+    setRawNotes(data.notes);
+    setRawFolders(data.folders);
+    setRawWorkspaces(data.workspaces);
   }, []);
 
-  // 2. ดึงข้อมูลจากฐานข้อมูลจริง (Fetching Data)
+  const sync = useCallback(async () => {
+    const q = cursor.current ? `?cursor=${cursor.current}` : '';
+    const data = await api.get(`sync${q}`);
+    applySync(data);
+  }, [applySync]);
+
+  // Load everything after sign-in, then keep polling while the app is open.
   useEffect(() => {
-    const fetchCloudData = async () => {
-      if (!session) return;
-      
-      try {
-        // ดึงโน้ต
-        const { data: cloudNotes, error: notesError } = await supabase
-          .from('notes')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('updated_at', { ascending: false });
-
-        if (cloudNotes) setNotes(cloudNotes);
-
-        // ดึงพื้นที่ทำงาน
-        const { data: cloudWorkspaces, error: wsError } = await supabase
-          .from('workspaces')
-          .select('*, workspace_members(role, profiles(*))')
-          .eq('owner_id', session.user.id);
-          
-        if (cloudWorkspaces) setWorkspaces(cloudWorkspaces);
-
-        // ดึงโฟลเดอร์
-        const { data: cloudFolders } = await supabase
-          .from('folders')
-          .select('*')
-          .eq('user_id', session.user.id);
-
-        if (cloudFolders && cloudFolders.length > 0) {
-          const defaultFolder = { id: 'default', name: 'All Notes', icon_name: 'folder', color: '#007AFF', hasStar: true };
-          setFolders([defaultFolder, ...cloudFolders]);
-        }
-
-        setIsLoaded(true);
-      } catch (error) {
-        console.error('Fetch error:', error);
-        setIsLoaded(true);
-      }
-    };
-
-    if (session) {
-      fetchCloudData();
-    } else {
+    cursor.current = null;
+    setRawNotes([]);
+    setRawFolders([]);
+    setRawWorkspaces([]);
+    if (!user) {
       setIsLoaded(true);
+      return undefined;
     }
-  }, [session]);
 
-  const addNote = async ({ title, content, folderId, workspaceId }) => {
-    if (!session) return;
+    let active = true;
+    setIsLoaded(false);
+    sync()
+      .catch(err => console.warn('Sync failed:', err.message))
+      .finally(() => active && setIsLoaded(true));
 
-    const newNote = {
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') sync().catch(() => {});
+    }, SYNC_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [user, sync]);
+
+  const replaceNote = useCallback(note => {
+    setRawNotes(prev => {
+      const exists = prev.some(n => n.id === note.id);
+      return exists ? prev.map(n => (n.id === note.id ? note : n)) : [note, ...prev];
+    });
+  }, []);
+
+  // --- notes ---
+
+  const addNote = useCallback(async ({ title = '', content = '', folderId, workspaceId, tags, pinned } = {}) => {
+    const { note } = await api.post('notes', {
       title,
       content,
-      folder_id: folderId || 'default',
-      workspace_id: workspaceId || null,
-      user_id: session.user.id,
-      updated_at: new Date().toISOString(),
-      link_enabled: false,
-    };
+      folderId: folderId && folderId !== 'default' ? folderId : null,
+      workspaceId: workspaceId || null,
+      tags,
+      pinned,
+    });
+    replaceNote(note);
+    return decorateNote(note);
+  }, [replaceNote]);
 
-    const { data, error } = await supabase
-      .from('notes')
-      .insert([newNote])
-      .select();
+  const updateNote = useCallback(async (id, updates) => {
+    const { note } = await api.patch(`notes/${id}`, updates);
+    replaceNote(note);
+    return decorateNote(note);
+  }, [replaceNote]);
 
-    if (data) {
-      setNotes([data[0], ...notes]);
-      return data[0];
-    }
-  };
+  const getNote = useCallback(async id => {
+    const { note } = await api.get(`notes/${id}`);
+    replaceNote(note);
+    return decorateNote(note);
+  }, [replaceNote]);
 
-  const updateNote = async (id, updates) => {
-    if (!session) return;
+  const deleteNote = useCallback(async id => {
+    await api.del(`notes/${id}`);
+    sync().catch(() => {});
+  }, [sync]);
 
-    const { error } = await supabase
-      .from('notes')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id);
+  const restoreFromTrash = useCallback(async id => {
+    const { note } = await api.post(`notes/${id}/restore`);
+    replaceNote(note);
+  }, [replaceNote]);
 
-    if (!error) {
-      setNotes(notes.map(n => n.id === id ? { ...n, ...updates } : n));
-    }
-  };
+  const deleteForever = useCallback(async id => {
+    await api.del(`notes/${id}?permanent=1`);
+    setRawNotes(prev => prev.filter(n => n.id !== id));
+  }, []);
 
+  const emptyTrash = useCallback(async () => {
+    await api.del('trash');
+    setRawNotes(prev => prev.filter(n => !n.deletedAt));
+  }, []);
 
-  const addFolder = async (name) => {
-    if (!session) return;
-    const { data } = await supabase
-      .from('folders')
-      .insert([{ name, user_id: session.user.id }])
-      .select();
-    
-    if (data) {
-      setFolders([...folders, data[0]]);
-    }
-  };
+  // --- sharing ---
 
-  const deleteFolder = async (id) => {
-    if (!session || id === 'default') return;
-    const { error } = await supabase.from('folders').delete().eq('id', id);
-    if (!error) {
-      setFolders(folders.filter(f => f.id !== id));
-    }
-  };
+  const listNoteShares = useCallback(async noteId => (await api.get(`notes/${noteId}/shares`)).shares, []);
 
-  const deleteNote = async (id) => {
-    if (!session) return;
-    const { error } = await supabase.from('notes').delete().eq('id', id);
-    if (!error) {
-      setNotes(notes.filter(n => n.id !== id));
-    }
-  };
+  const shareNote = useCallback(async (noteId, email, role = 'editor') => {
+    const { share } = await api.post(`notes/${noteId}/shares`, { email, role });
+    sync().catch(() => {});
+    return share;
+  }, [sync]);
 
+  const unshareNote = useCallback(async (noteId, userId) => {
+    await api.del(`notes/${noteId}/shares/${userId}`);
+    sync().catch(() => {});
+  }, [sync]);
 
-  const addWorkspace = (newWs) => {
-    const wsWithId = {
-      ...newWs,
-      id: 'ws-' + Date.now(),
-      activity: 'Just created',
-      members: [{ id: 'me', name: 'Alex (You)', role: 'Admin', avatar: '#FF9500' }],
-      linkEnabled: false,
-      shareLink: `https://swift-notes.com/join/${newWs.name.toLowerCase().replace(/\s+/g, '-')}`
-    };
-    setWorkspaces(prev => [wsWithId, ...prev]);
-  };
+  // --- folders ---
 
-  const getNoteCount = (folderId) => {
-    if (folderId === 'default') return notes.length;
-    return notes.filter(n => n.folderId === folderId).length;
-  };
+  const addFolder = useCallback(async folder => {
+    const payload = typeof folder === 'string' ? { name: folder } : folder;
+    const { folder: created } = await api.post('folders', payload);
+    setRawFolders(prev => [...prev, created]);
+    return created;
+  }, []);
 
-  const addMemberToWorkspace = (wsId, memberName) => {
-    const newMember = {
-      id: Date.now().toString(),
-      name: memberName,
-      role: 'Editor',
-      avatar: '#' + Math.floor(Math.random()*16777215).toString(16) // Random Color
-    };
-    
-    setWorkspaces(prev => prev.map(ws => 
-      ws.id === wsId ? { ...ws, members: [...ws.members, newMember] } : ws
-    ));
-    return newMember;
-  };
+  const deleteFolder = useCallback(async id => {
+    if (id === 'default') return;
+    await api.del(`folders/${id}`);
+    setRawFolders(prev => prev.filter(f => f.id !== id));
+  }, []);
 
-  const updateWorkspace = (wsId, updatedFields) => {
-    setWorkspaces(prev => prev.map(ws => 
-      ws.id === wsId ? { ...ws, ...updatedFields } : ws
-    ));
-  };
+  // --- workspaces ---
 
-  const deleteWorkspace = (wsId) => {
-    const wsToDelete = workspaces.find(ws => ws.id === wsId);
-    if (wsToDelete) {
-      setTrash(prev => ({ ...prev, workspaces: [wsToDelete, ...prev.workspaces] }));
-      setWorkspaces(prev => prev.filter(ws => ws.id !== wsId));
-    }
-  };
+  const replaceWorkspace = useCallback(ws => {
+    setRawWorkspaces(prev => {
+      const exists = prev.some(w => w.id === ws.id);
+      return exists ? prev.map(w => (w.id === ws.id ? ws : w)) : [ws, ...prev];
+    });
+  }, []);
 
-  const restoreFromTrash = (id, type) => {
-    if (type === 'workspace') {
-      const wsToRestore = trash.workspaces.find(ws => ws.id === id);
-      setWorkspaces(prev => [wsToRestore, ...prev]);
-      setTrash(prev => ({ ...prev, workspaces: prev.workspaces.filter(ws => ws.id !== id) }));
-    } else {
-      const noteToRestore = trash.notes.find(n => n.id === id);
-      setNotes(prev => [noteToRestore, ...prev]);
-      setTrash(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
-    }
-  };
+  const addWorkspace = useCallback(async ({ name, iconName, color }) => {
+    const { workspace } = await api.post('workspaces', { name, iconName, color });
+    replaceWorkspace(workspace);
+    return decorateWorkspace(workspace);
+  }, [replaceWorkspace]);
 
-  const emptyTrash = () => {
-    setTrash({ workspaces: [], notes: [] });
-  };
+  const updateWorkspace = useCallback(async (id, fields) => {
+    const allowed = {};
+    ['name', 'iconName', 'color'].forEach(k => {
+      if (fields[k] !== undefined) allowed[k] = fields[k];
+    });
+    if (!Object.keys(allowed).length) return null;
+    const { workspace } = await api.patch(`workspaces/${id}`, allowed);
+    replaceWorkspace(workspace);
+    return decorateWorkspace(workspace);
+  }, [replaceWorkspace]);
+
+  const deleteWorkspace = useCallback(async id => {
+    await api.del(`workspaces/${id}`);
+    setRawWorkspaces(prev => prev.filter(w => w.id !== id));
+    sync().catch(() => {});
+  }, [sync]);
+
+  const addMemberToWorkspace = useCallback(async (id, email, role = 'editor') => {
+    const { workspace } = await api.post(`workspaces/${id}/members`, { email, role });
+    replaceWorkspace(workspace);
+    return decorateWorkspace(workspace);
+  }, [replaceWorkspace]);
+
+  const removeMemberFromWorkspace = useCallback(async (id, userId) => {
+    await api.del(`workspaces/${id}/members/${userId}`);
+    sync().catch(() => {});
+  }, [sync]);
+
+  // --- derived data for the screens ---
+
+  const notes = useMemo(() => rawNotes.filter(n => !n.deletedAt).map(decorateNote), [rawNotes]);
+  const trash = useMemo(
+    () => ({ workspaces: [], notes: rawNotes.filter(n => n.deletedAt).map(decorateNote) }),
+    [rawNotes],
+  );
+  const folders = useMemo(() => [DEFAULT_FOLDER, ...rawFolders], [rawFolders]);
+  const workspaces = useMemo(() => rawWorkspaces.map(decorateWorkspace), [rawWorkspaces]);
+
+  const getNoteCount = useCallback(
+    folderId => (folderId === 'default' ? notes.length : notes.filter(n => n.folderId === folderId).length),
+    [notes],
+  );
 
   return (
-    <NoteContext.Provider value={{ 
-      folders, 
-      notes, 
-      workspaces,
-      trash,
-      passcode,
-      passlockEnabled,
-      setPasscode,
-      setPasslockEnabled,
-      addFolder, 
-      deleteFolder, 
-      addNote, 
-      updateNote, 
-      deleteNote,
-      addWorkspace,
-      addMemberToWorkspace,
-      updateWorkspace,
-      deleteWorkspace,
-      restoreFromTrash,
-      emptyTrash,
-      getNoteCount,
-      isLoaded
-    }}>
+    <NoteContext.Provider
+      value={{
+        folders,
+        notes,
+        workspaces,
+        trash,
+        passcode,
+        passlockEnabled,
+        setPasscode,
+        setPasslockEnabled,
+        isLoaded,
+        sync,
+        addFolder,
+        deleteFolder,
+        addNote,
+        getNote,
+        updateNote,
+        deleteNote,
+        restoreFromTrash,
+        deleteForever,
+        emptyTrash,
+        listNoteShares,
+        shareNote,
+        unshareNote,
+        addWorkspace,
+        updateWorkspace,
+        deleteWorkspace,
+        addMemberToWorkspace,
+        removeMemberFromWorkspace,
+        getNoteCount,
+      }}
+    >
       {children}
     </NoteContext.Provider>
   );
