@@ -16,7 +16,7 @@ import { Mail, Lock, User, Eye, EyeOff, ChevronLeft } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext';
 import { column, MAX_WIDTH } from '../lib/responsive';
 
-const EMAIL_RE = /^[^s@]+@[^s@]+.[^s@]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
