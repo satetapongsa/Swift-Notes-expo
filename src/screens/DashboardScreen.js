@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  TextInput, 
+import React, {useState, useMemo, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
   Image,
   SafeAreaView,
   StatusBar,
@@ -13,19 +13,21 @@ import {
   TouchableWithoutFeedback,
   Dimensions
 } from 'react-native';
-import { 
-  Menu, 
-  Search, 
-  User, 
-  Plus, 
-  Pin, 
+import {
+  Menu,
+  Search,
+  User,
+  Plus,
+  Pin,
   MoreVertical,
   ChevronRight,
   FileText,
   Trash2,
   Share2,
   Tag,
-  X
+  X,
+  Folder,
+  PinOff,
 } from 'lucide-react-native';
 import Sidebar from '../components/Sidebar';
 import { useTheme } from '../theme/ThemeContext';
@@ -39,45 +41,74 @@ const GRID_GAP = 20;
 
 const DashboardScreen = ({ navigation }) => {
   const { colors, typography, isDark } = useTheme();
-  const { notes, deleteNote } = useNotes();
+  const { notes, folders, deleteNote, updateNote } = useNotes();
   const { columns } = useLayout();
   const [showSidebar, setShowSidebar] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedNote, setSelectedNote] = useState(null);
   const [showNoteMenu, setShowNoteMenu] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [menuError, setMenuError] = useState('');
 
-  const filters = ['All', 'Pinned', 'Work', 'Personal', 'Ideas'];
+  // Filters: everything, pinned, then one per tag actually used.
+  const filters = useMemo(() => {
+    const tags = [...new Set(notes.flatMap(n => n.tags || []))].sort((a, b) => a.localeCompare(b));
+    return ['All', 'Pinned', ...tags];
+  }, [notes]);
+
+  useEffect(() => {
+    if (!filters.includes(activeFilter)) setActiveFilter('All');
+  }, [filters, activeFilter]);
 
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
-      const matchQuery = note.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchQuery = note.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (note.snippet || note.content || '')?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          note.tags?.some(t => t.toLowerCase().includes(searchQuery.replace('#', '').toLowerCase()));
-      
-      const matchFilter = activeFilter === 'All' || 
+
+      const matchFilter = activeFilter === 'All' ||
                          (activeFilter === 'Pinned' ? note.isPinned : note.tags?.includes(activeFilter));
-      
+
       return matchQuery && matchFilter;
     });
   }, [searchQuery, activeFilter, notes]);
 
-  const handleDeleteNote = (id) => {
-    deleteNote(id);
+  const closeMenu = () => {
     setShowNoteMenu(false);
+    setShowFolderPicker(false);
+    setMenuError('');
   };
+
+  const runMenuAction = async action => {
+    try {
+      await action();
+      closeMenu();
+    } catch (e) {
+      setMenuError(e.message);
+    }
+  };
+
+  const handleDeleteNote = id => runMenuAction(() => deleteNote(id));
+  const togglePin = note => runMenuAction(() => updateNote(note.id, { pinned: !note.pinned }));
+  const moveToFolder = (note, folderId) => runMenuAction(() => updateNote(note.id, { folderId: folderId === 'default' ? null : folderId }));
 
   const openNoteMenu = (note) => {
     setSelectedNote(note);
+    setMenuError('');
+    setShowFolderPicker(false);
     setShowNoteMenu(true);
   };
+
+  const canEdit = selectedNote && selectedNote.access !== 'viewer';
+  const isOwner = selectedNote?.access === 'owner';
 
   const styles = createStyles(colors, typography);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-      
+
       {/* Header */}
       <View style={[styles.header, { backgroundColor: isDark ? colors.card : colors.white }]}>
         <TouchableOpacity onPress={() => setShowSidebar(true)}>
@@ -93,7 +124,7 @@ const DashboardScreen = ({ navigation }) => {
         {/* Search Bar */}
         <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Search size={20} color={colors.textSecondary} style={styles.searchIcon} />
-          <TextInput 
+          <TextInput
             style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search notes or #tags..."
             placeholderTextColor={colors.placeholder}
@@ -108,24 +139,24 @@ const DashboardScreen = ({ navigation }) => {
         </View>
 
         {/* Filters */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           style={styles.filterBar}
           contentContainerStyle={styles.filterContent}
         >
           {filters.map(filter => (
-            <TouchableOpacity 
-              key={filter} 
+            <TouchableOpacity
+              key={filter}
               onPress={() => setActiveFilter(filter)}
               style={[
-                styles.filterPill, 
+                styles.filterPill,
                 { backgroundColor: colors.pill },
                 activeFilter === filter && { backgroundColor: colors.primary }
               ]}
             >
               <Text style={[
-                styles.filterText, 
+                styles.filterText,
                 { color: colors.textSecondary },
                 activeFilter === filter && { color: colors.white, fontWeight: '700' }
               ]}>
@@ -145,12 +176,12 @@ const DashboardScreen = ({ navigation }) => {
           <View style={gridRow(GRID_GAP)}>
           {filteredNotes.map(note => (
             <View key={note.id} style={gridItem(columns, GRID_GAP)}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.noteCard, 
+                styles.noteCard,
                 { backgroundColor: colors.card, borderColor: colors.border },
                 note.isFeatured && { borderColor: colors.primary, borderWidth: 1.5 }
-              ]} 
+              ]}
               onPress={() => navigation.navigate('Editor', { note })}
             >
               {note.image && <Image source={{ uri: note.image }} style={styles.noteImage} />}
@@ -179,7 +210,7 @@ const DashboardScreen = ({ navigation }) => {
           ))}
           </View>
         )}
-        
+
         {/* Extra space for FAB */}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -201,10 +232,10 @@ const DashboardScreen = ({ navigation }) => {
             <View style={styles.sidebarBackdrop} />
           </TouchableWithoutFeedback>
           <View style={styles.sidebarContainer}>
-            <Sidebar 
-              navigation={navigation} 
-              onClose={() => setShowSidebar(false)} 
-              currentRoute="Main" 
+            <Sidebar
+              navigation={navigation}
+              onClose={() => setShowSidebar(false)}
+              currentRoute="Main"
             />
           </View>
         </View>
@@ -215,19 +246,19 @@ const DashboardScreen = ({ navigation }) => {
         visible={showNoteMenu}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowNoteMenu(false)}
+        onRequestClose={closeMenu}
       >
         <View style={styles.bottomSheetOverlay}>
-          <TouchableWithoutFeedback onPress={() => setShowNoteMenu(false)}>
+          <TouchableWithoutFeedback onPress={closeMenu}>
             <View style={styles.sheetBackdrop} />
           </TouchableWithoutFeedback>
           <View style={[styles.actionSheet, { backgroundColor: colors.card }]}>
             <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
             <Text style={[styles.actionSheetTitle, { color: colors.textSecondary }]}>NOTE OPTIONS</Text>
-            
-            <TouchableOpacity 
-              style={[styles.actionItem, { borderBottomColor: colors.border }]} 
-              onPress={() => setShowNoteMenu(false)}
+
+            <TouchableOpacity
+              style={[styles.actionItem, { borderBottomColor: colors.border }]}
+              onPress={() => { closeMenu(); navigation.navigate('Editor', { note: selectedNote, openShare: true }); }}
             >
               <View style={[styles.actionIcon, { backgroundColor: colors.primary + '15' }]}>
                 <Share2 size={24} color={colors.primary} />
@@ -239,23 +270,76 @@ const DashboardScreen = ({ navigation }) => {
               <ChevronRight size={20} color={colors.placeholder} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.actionItem} 
+            {canEdit && (
+              <TouchableOpacity
+                style={[styles.actionItem, { borderBottomColor: colors.border }]}
+                onPress={() => togglePin(selectedNote)}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: colors.warning + '15' }]}>
+                  {selectedNote?.pinned ? <PinOff size={24} color={colors.warning} /> : <Pin size={24} color={colors.warning} />}
+                </View>
+                <View style={styles.actionTextContent}>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{selectedNote?.pinned ? 'Unpin Note' : 'Pin Note'}</Text>
+                  <Text style={[styles.actionDesc, { color: colors.textSecondary }]}>{selectedNote?.pinned ? 'Remove from the top of your list' : 'Keep it at the top of your list'}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {isOwner && (
+              <TouchableOpacity
+                style={[styles.actionItem, { borderBottomColor: colors.border }]}
+                onPress={() => setShowFolderPicker(v => !v)}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: colors.secondary + '15' }]}>
+                  <Folder size={24} color={colors.secondary} />
+                </View>
+                <View style={styles.actionTextContent}>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>Move to Folder</Text>
+                  <Text style={[styles.actionDesc, { color: colors.textSecondary }]}>
+                    {folders.find(f => f.id === (selectedNote?.folderId || 'default'))?.name || 'All Notes'}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={colors.placeholder} style={showFolderPicker && { transform: [{ rotate: '90deg' }] }} />
+              </TouchableOpacity>
+            )}
+
+            {isOwner && showFolderPicker && (
+              <View style={styles.folderPicker}>
+                {folders.map(f => {
+                  const current = (selectedNote?.folderId || 'default') === f.id;
+                  return (
+                    <TouchableOpacity
+                      key={f.id}
+                      onPress={() => moveToFolder(selectedNote, f.id)}
+                      style={[styles.folderOption, { borderColor: current ? colors.primary : colors.border }]}
+                    >
+                      <View style={[styles.folderDot, { backgroundColor: f.color }]} />
+                      <Text style={{ color: colors.text, fontWeight: current ? '700' : '500' }}>{f.id === 'default' ? 'No folder' : f.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {menuError ? <Text style={{ color: colors.danger, marginVertical: 8 }}>{menuError}</Text> : null}
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={() => handleDeleteNote(selectedNote?.id)}
             >
               <View style={[styles.actionIcon, { backgroundColor: colors.danger + '15' }]}>
                 <Trash2 size={24} color={colors.danger} />
               </View>
               <View style={styles.actionTextContent}>
-                <Text style={[styles.actionLabel, { color: colors.danger }]}>Delete Note</Text>
-                <Text style={[styles.actionDesc, { color: colors.textSecondary }]}>Move this note to trash</Text>
+                <Text style={[styles.actionLabel, { color: colors.danger }]}>{isOwner ? 'Delete Note' : 'Remove from My Notes'}</Text>
+                <Text style={[styles.actionDesc, { color: colors.textSecondary }]}>{isOwner ? 'Move this note to trash' : 'You will no longer have access'}</Text>
               </View>
               <ChevronRight size={20} color={colors.placeholder} />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.cancelButton, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]} 
-              onPress={() => setShowNoteMenu(false)}
+
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
+              onPress={closeMenu}
             >
               <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
             </TouchableOpacity>
@@ -432,6 +516,27 @@ const createStyles = (colors, typography) => StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 25,
     textAlign: 'center',
+  },
+  folderPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingVertical: 10,
+  },
+  folderOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  folderDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
   },
   actionItem: {
     flexDirection: 'row',
