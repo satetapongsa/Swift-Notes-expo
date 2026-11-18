@@ -1,4 +1,5 @@
 const { db } = require('../db');
+const { merge3 } = require('../../shared/merge');
 const { requireUser } = require('../auth');
 const { NOTE_SELECT, toNote } = require('../access');
 const { HttpError, send, readBody, str, email, uuid, optionalUuid, oneOf } = require('../http');
@@ -60,50 +61,105 @@ async function create(req, res) {
   send(res, 201, { note: toNote(row) });
 }
 
+// Text fields are merged when the note changed since the client last saw it.
+const TEXT_FIELDS = ['title', 'content'];
+const MAX_ATTEMPTS = 3;
+
 async function update(req, res, { id }) {
   const user = await requireUser(req);
   const body = await readBody(req);
   const sql = db();
   const noteId = uuid(id, 'Note');
-  const current = await loadNote(sql, user.id, noteId);
-  if (current.access === 'viewer') throw new HttpError(403, 'You can only view this note');
-  if (current.deleted_at) throw new HttpError(400, 'Restore the note before editing it');
 
-  const sets = [];
-  const params = [noteId, user.id];
-  const add = (column, value) => {
-    params.push(value);
-    sets.push(`${column} = $${params.length}`);
-  };
+  // Validate everything up front.
+  const input = {};
+  if (body.title !== undefined) input.title = str(body.title, 'Title', { max: MAX_TITLE });
+  if (body.content !== undefined) input.content = str(body.content, 'Content', { max: MAX_CONTENT, trim: false });
+  if (body.tags !== undefined) input.tags = tags(body.tags);
+  if (body.pinned !== undefined) input.pinned = Boolean(body.pinned);
+  const moving = body.folderId !== undefined || body.workspaceId !== undefined;
+  const folderId = body.folderId !== undefined ? optionalUuid(body.folderId, 'Folder') : undefined;
+  const workspaceId = body.workspaceId !== undefined ? optionalUuid(body.workspaceId, 'Workspace') : undefined;
 
-  if (body.title !== undefined) add('title', str(body.title, 'Title', { max: MAX_TITLE }));
-  if (body.content !== undefined) add('content', str(body.content, 'Content', { max: MAX_CONTENT, trim: false }));
-  if (body.tags !== undefined) add('tags', tags(body.tags));
-  if (body.pinned !== undefined) add('pinned', Boolean(body.pinned));
+  // The version and text the client started editing from (optional).
+  const baseVersion = Number.isInteger(body.baseVersion) ? body.baseVersion : null;
+  const base = body.base && typeof body.base === 'object' ? body.base : {};
 
-  if (body.folderId !== undefined || body.workspaceId !== undefined) {
-    if (current.access !== 'owner') throw new HttpError(403, 'Only the owner can move this note');
-    if (body.folderId !== undefined) {
-      const folderId = optionalUuid(body.folderId, 'Folder');
-      await assertFolder(sql, user.id, folderId);
-      add('folder_id', folderId);
+  let merged = false;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const current = await loadNote(sql, user.id, noteId);
+    if (current.access === 'viewer') throw new HttpError(403, 'You can only view this note');
+    if (current.deleted_at) throw new HttpError(400, 'Restore the note before editing it');
+    if (moving && current.access !== 'owner') throw new HttpError(403, 'Only the owner can move this note');
+    if (folderId) await assertFolder(sql, user.id, folderId);
+    if (workspaceId) await assertWorkspaceEditor(sql, user.id, workspaceId);
+
+    const values = { ...input };
+    const stale = baseVersion !== null && baseVersion !== current.version;
+    if (stale) {
+      for (const field of TEXT_FIELDS) {
+        if (values[field] !== undefined && typeof base[field] === 'string') {
+          const result = merge3(base[field], values[field], current[field]);
+          if (result !== values[field]) merged = true;
+          values[field] = result;
+        }
+      }
     }
-    if (body.workspaceId !== undefined) {
-      const workspaceId = optionalUuid(body.workspaceId, 'Workspace');
-      await assertWorkspaceEditor(sql, user.id, workspaceId);
-      add('workspace_id', workspaceId);
-    }
-  }
 
-  if (sets.length) {
-    await sql(
+    const sets = [];
+    const params = [noteId, user.id, current.version];
+    const add = (column, value) => {
+      params.push(value);
+      sets.push(`${column} = $${params.length}`);
+    };
+    for (const [key, column] of [['title', 'title'], ['content', 'content'], ['tags', 'tags'], ['pinned', 'pinned']]) {
+      if (values[key] !== undefined) add(column, values[key]);
+    }
+    if (folderId !== undefined) add('folder_id', folderId);
+    if (workspaceId !== undefined) add('workspace_id', workspaceId);
+    if (!sets.length) break;
+
+    // Only write if nobody saved since we read the note; otherwise merge again.
+    const updated = await sql(
       `UPDATE notes SET ${sets.join(', ')}, version = version + 1, updated_by = $2, updated_at = now()
-        WHERE id = $1`,
+        WHERE id = $1 AND version = $3 RETURNING id`,
       params,
     );
+    if (updated.length) break;
+    if (attempt === MAX_ATTEMPTS) throw new HttpError(409, 'The note is busy. Please try again.');
   }
+
   const row = await loadNote(sql, user.id, noteId);
-  send(res, 200, { note: toNote(row) });
+  send(res, 200, { note: toNote(row), merged });
+}
+
+// Marks the user as present in a note and returns the latest note plus who else is in it.
+async function heartbeat(req, res, { id }) {
+  const user = await requireUser(req);
+  const body = await readBody(req);
+  const sql = db();
+  const noteId = uuid(id, 'Note');
+  const row = await loadNote(sql, user.id, noteId);
+  if (row.deleted_at) throw new HttpError(404, 'Note not found');
+
+  await sql(
+    `INSERT INTO note_presence (note_id, user_id, editing, seen_at) VALUES ($1, $2, $3, now())
+     ON CONFLICT (note_id, user_id) DO UPDATE SET editing = EXCLUDED.editing, seen_at = now()`,
+    [noteId, user.id, Boolean(body.editing)],
+  );
+  const viewers = await sql(
+    `SELECT u.id, u.name, p.editing FROM note_presence p JOIN users u ON u.id = p.user_id
+      WHERE p.note_id = $1 AND p.user_id <> $2 AND p.seen_at > now() - interval '8 seconds'
+      ORDER BY u.name`,
+    [noteId, user.id],
+  );
+  send(res, 200, { note: toNote(row), viewers });
+}
+
+async function leave(req, res, { id }) {
+  const user = await requireUser(req);
+  await db()('DELETE FROM note_presence WHERE note_id = $1 AND user_id = $2', [uuid(id, 'Note'), user.id]);
+  send(res, 200, { ok: true });
 }
 
 // Owner: move to trash (or delete forever with ?permanent=1 once in trash).
@@ -200,4 +256,4 @@ async function removeShare(req, res, { id, userId }) {
   send(res, 200, { ok: true });
 }
 
-module.exports = { get, create, update, remove, restore, emptyTrash, listShares, addShare, removeShare };
+module.exports = { get, create, update, heartbeat, leave, remove, restore, emptyTrash, listShares, addShare, removeShare };

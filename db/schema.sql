@@ -86,3 +86,12 @@ CREATE TABLE IF NOT EXISTS note_shares (
   PRIMARY KEY (note_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS note_shares_user_idx ON note_shares(user_id);
+
+-- Who has a note open right now (refreshed by the editor every few seconds).
+CREATE TABLE IF NOT EXISTS note_presence (
+  note_id     uuid NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  editing     boolean NOT NULL DEFAULT false,
+  seen_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (note_id, user_id)
+);

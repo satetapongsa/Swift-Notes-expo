@@ -19,6 +19,8 @@ const routes = [
   ['PATCH', 'notes/:id', notes.update],
   ['DELETE', 'notes/:id', notes.remove],
   ['POST', 'notes/:id/restore', notes.restore],
+  ['POST', 'notes/:id/presence', notes.heartbeat],
+  ['DELETE', 'notes/:id/presence', notes.leave],
   ['GET', 'notes/:id/shares', notes.listShares],
   ['POST', 'notes/:id/shares', notes.addShare],
   ['DELETE', 'notes/:id/shares/:userId', notes.removeShare],
