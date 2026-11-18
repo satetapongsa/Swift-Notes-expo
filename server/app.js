@@ -4,6 +4,9 @@ const notes = require('./routes/notes');
 const folders = require('./routes/folders');
 const workspaces = require('./routes/workspaces');
 const { sync } = require('./routes/sync');
+const ai = require('./routes/ai');
+const attachments = require('./routes/attachments');
+const profile = require('./routes/profile');
 
 // [method, pattern, handler]. ":name" segments become params.
 const routes = [
@@ -11,6 +14,10 @@ const routes = [
   ['POST', 'auth/login', auth.login],
   ['POST', 'auth/logout', auth.logout],
   ['GET', 'auth/me', auth.me],
+  ['PATCH', 'auth/me', profile.update],
+  ['POST', 'auth/me/avatar', profile.uploadAvatar],
+  ['DELETE', 'auth/me/avatar', profile.removeAvatar],
+  ['GET', 'users/:id/avatar', profile.avatar],
 
   ['GET', 'sync', sync],
 
@@ -21,6 +28,11 @@ const routes = [
   ['POST', 'notes/:id/restore', notes.restore],
   ['POST', 'notes/:id/presence', notes.heartbeat],
   ['DELETE', 'notes/:id/presence', notes.leave],
+  ['POST', 'notes/:id/summary', ai.summarize],
+  ['GET', 'notes/:id/attachments', attachments.list],
+  ['POST', 'notes/:id/attachments', attachments.upload],
+  ['GET', 'attachments/:attachmentId', attachments.download],
+  ['DELETE', 'attachments/:attachmentId', attachments.remove],
   ['GET', 'notes/:id/shares', notes.listShares],
   ['POST', 'notes/:id/shares', notes.addShare],
   ['DELETE', 'notes/:id/shares/:userId', notes.removeShare],

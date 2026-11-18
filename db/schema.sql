@@ -95,3 +95,33 @@ CREATE TABLE IF NOT EXISTS note_presence (
   seen_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (note_id, user_id)
 );
+
+-- AI requests per user, used for rate limiting.
+CREATE TABLE IF NOT EXISTS ai_requests (
+  id          bigserial PRIMARY KEY,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_requests_user_idx ON ai_requests(user_id, created_at);
+
+-- Where each person is typing (shown as a name tag in the editor).
+ALTER TABLE note_presence ADD COLUMN IF NOT EXISTS field text;
+ALTER TABLE note_presence ADD COLUMN IF NOT EXISTS line integer;
+
+-- Files attached to notes (small files only; stored in the database).
+CREATE TABLE IF NOT EXISTS note_attachments (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  note_id      uuid NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+  uploaded_by  uuid REFERENCES users(id) ON DELETE SET NULL,
+  name         text NOT NULL,
+  mime         text NOT NULL,
+  size         integer NOT NULL,
+  data         bytea NOT NULL,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS note_attachments_note_idx ON note_attachments(note_id);
+
+-- Profile photo (optional; users start without one).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data bytea;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_mime text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated_at timestamptz;
