@@ -33,10 +33,14 @@ import { useTheme } from '../theme/ThemeContext';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 import { useNotes } from '../context/NoteContext';
+import { useLayout, column, gridRow, gridItem, MAX_WIDTH } from '../lib/responsive';
+
+const GRID_GAP = 20;
 
 const DashboardScreen = ({ navigation }) => {
   const { colors, typography, isDark } = useTheme();
   const { notes, deleteNote } = useNotes();
+  const { columns } = useLayout();
   const [showSidebar, setShowSidebar] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
@@ -85,7 +89,7 @@ const DashboardScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.list)]}>
         {/* Search Bar */}
         <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Search size={20} color={colors.textSecondary} style={styles.searchIcon} />
@@ -138,9 +142,10 @@ const DashboardScreen = ({ navigation }) => {
              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No notes found matching your search</Text>
           </View>
         ) : (
-          filteredNotes.map(note => (
+          <View style={gridRow(GRID_GAP)}>
+          {filteredNotes.map(note => (
+            <View key={note.id} style={gridItem(columns, GRID_GAP)}>
             <TouchableOpacity 
-              key={note.id} 
               style={[
                 styles.noteCard, 
                 { backgroundColor: colors.card, borderColor: colors.border },
@@ -170,7 +175,9 @@ const DashboardScreen = ({ navigation }) => {
                 </View>
               </View>
             </TouchableOpacity>
-          ))
+            </View>
+          ))}
+          </View>
         )}
         
         {/* Extra space for FAB */}
@@ -394,13 +401,12 @@ const createStyles = (colors, typography) => StyleSheet.create({
     flexDirection: 'row',
   },
   sidebarBackdrop: {
-    position: 'absolute',
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sidebarContainer: {
-    width: SCREEN_WIDTH * 0.8,
+    maxWidth: 340,
+    width: '80%',
     height: '100%',
   },
   bottomSheetOverlay: {
@@ -412,6 +418,8 @@ const createStyles = (colors, typography) => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   actionSheet: {
+    maxWidth: 560,
+    alignSelf: 'center',
     width: '100%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,

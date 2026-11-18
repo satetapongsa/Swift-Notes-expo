@@ -26,10 +26,14 @@ import {
 import Sidebar from '../components/Sidebar';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
+import { useLayout, column, gridRow, gridItem, MAX_WIDTH } from '../lib/responsive';
+
+const GRID_GAP = 16;
 
 const FoldersScreen = ({ navigation, route }) => {
   const { colors, typography, isDark } = useTheme();
   const { folders, addFolder, getNoteCount } = useNotes();
+  const { columns } = useLayout();
   const [showSidebar, setShowSidebar] = React.useState(false);
 
   React.useEffect(() => {
@@ -66,6 +70,7 @@ const FoldersScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
+      <View style={column(MAX_WIDTH.list)}>
       <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Search size={22} color={colors.textSecondary} style={styles.searchIcon} />
         <TextInput 
@@ -74,11 +79,13 @@ const FoldersScreen = ({ navigation, route }) => {
           placeholderTextColor={colors.placeholder}
         />
       </View>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.listContainer, column(MAX_WIDTH.list)]} showsVerticalScrollIndicator={false}>
+        <View style={gridRow(GRID_GAP)}>
         {folders.map(folder => (
+          <View key={folder.id} style={gridItem(columns, GRID_GAP)}>
           <TouchableOpacity 
-            key={folder.id} 
             style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => navigation.navigate('FolderDetail', { folder })}
           >
@@ -99,7 +106,9 @@ const FoldersScreen = ({ navigation, route }) => {
               <ChevronRight size={20} color={colors.placeholder} />
             </View>
           </TouchableOpacity>
+          </View>
         ))}
+        </View>
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -232,6 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sidebarContainer: {
+    maxWidth: 340,
     width: '80%',
     height: '100%',
   },
