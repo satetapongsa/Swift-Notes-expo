@@ -1023,7 +1023,7 @@ const styles = StyleSheet.create({
   formatButton: {
     width: 40,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 8,
@@ -1111,7 +1111,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 10,
@@ -1217,7 +1217,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 20,
+    borderRadius: 16,
     maxWidth: 150,
   },
   workspaceDot: {
@@ -1342,7 +1342,7 @@ const styles = StyleSheet.create({
   },
   aiSection: {
     padding: 20,
-    borderRadius: 20,
+    borderRadius: 16,
     marginTop: 10,
   },
   aiLabel: {
@@ -1404,7 +1404,7 @@ const styles = StyleSheet.create({
   shareModalContent: {
     maxWidth: 480,
     width: '100%',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 24,
   },
   shareToggleRow: {

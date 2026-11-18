@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   aiResultContainer: {
     backgroundColor: '#F8F9FA',
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 20,
     borderWidth: 1,
     borderColor: '#E5E5EA',
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F2F2F7',
-    borderRadius: 18,
+    borderRadius: 16,
     paddingHorizontal: 15,
     height: 56,
   },

@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   iconPreview: {
     width: 80,
     height: 80,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: '#EBF5FF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   iconItem: {
     width: 56,
     height: 56,
-    borderRadius: 15,
+    borderRadius: 12,
     backgroundColor: '#F2F2F7',
     justifyContent: 'center',
     alignItems: 'center',

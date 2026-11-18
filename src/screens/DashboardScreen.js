@@ -382,7 +382,7 @@ const createStyles = (colors, typography) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
-    borderRadius: 15,
+    borderRadius: 12,
     height: 56,
     borderWidth: 1,
     marginBottom: 20,
@@ -412,7 +412,7 @@ const createStyles = (colors, typography) => StyleSheet.create({
     fontWeight: '600',
   },
   noteCard: {
-    borderRadius: 25,
+    borderRadius: 20,
     marginBottom: 20,
     borderWidth: 1,
     overflow: 'hidden',
@@ -528,7 +528,7 @@ const createStyles = (colors, typography) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginRight: 8,
@@ -549,7 +549,7 @@ const createStyles = (colors, typography) => StyleSheet.create({
   actionIcon: {
     width: 54,
     height: 54,
-    borderRadius: 18,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 18,
@@ -575,7 +575,7 @@ const createStyles = (colors, typography) => StyleSheet.create({
   cancelButton: {
     marginTop: 25,
     padding: 18,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
   },
   cancelText: {

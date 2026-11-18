@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 560,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
   },

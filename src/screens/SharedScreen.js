@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 60,
     height: 60,
-    borderRadius: 18,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -878,7 +878,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   noteCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 20,
     marginBottom: 15,
     borderWidth: 1,
@@ -960,7 +960,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
-    borderRadius: 20,
+    borderRadius: 999,
   },
   modalSubtitle: {
     fontSize: 15,
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
   actionIcon: {
     width: 54,
     height: 54,
-    borderRadius: 18,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 18,
@@ -1097,7 +1097,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     marginTop: 25,
     padding: 18,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
   },
   cancelText: {
@@ -1115,7 +1115,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 30,
+    borderRadius: 20,
     elevation: 10,
   },
   toastText: {
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
   iconPreviewBox: {
     width: 60,
     height: 60,
-    borderRadius: 15,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -1173,7 +1173,7 @@ const styles = StyleSheet.create({
   iconItemBlock: {
     width: 54,
     height: 54,
-    borderRadius: 15,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1191,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   confirmCreateButton: {
     padding: 18,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
   },
@@ -1211,7 +1211,7 @@ const styles = StyleSheet.create({
   activityIconBox: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -1226,7 +1226,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   inviteCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 20,
     borderWidth: 1,
     marginBottom: 20,
@@ -1267,7 +1267,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 15,
+    borderRadius: 12,
   },
   declineBtn: {
     backgroundColor: 'rgba(255, 59, 48, 0.1)',
@@ -1350,7 +1350,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 16,
     marginLeft: 10,
   },
   // New Invite Modal Styles
@@ -1379,7 +1379,7 @@ const styles = StyleSheet.create({
   inviteIconBox: {
     width: 50,
     height: 50,
-    borderRadius: 15,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -1397,7 +1397,7 @@ const styles = StyleSheet.create({
   inviteInput: {
     width: '100%',
     height: 56,
-    borderRadius: 15,
+    borderRadius: 12,
     paddingHorizontal: 20,
     fontSize: 16,
     marginBottom: 25,
