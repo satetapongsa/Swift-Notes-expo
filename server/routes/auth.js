@@ -61,13 +61,16 @@ async function login(req, res) {
   const [limits] = await sql(
     `SELECT
        count(*) FILTER (WHERE email = $1)::int AS by_email,
-       count(*) FILTER (WHERE ip = $2 AND email <> 'signup')::int AS by_ip
+       count(*) FILTER (WHERE ip = $2 AND email <> 'signup')::int AS by_ip,
+       -- minutes until the oldest counted attempt drops out of the window
+       ceil(extract(epoch FROM (min(created_at) + ${WINDOW} - now())) / 60)::int AS wait_minutes
      FROM login_attempts
      WHERE created_at > now() - ${WINDOW} AND (email = $1 OR ip = $2)`,
     [mail, ip],
   );
   if (limits.by_email >= MAX_FAILS_PER_EMAIL || limits.by_ip >= MAX_FAILS_PER_IP) {
-    throw new HttpError(429, 'Too many failed attempts. Wait 15 minutes and try again.');
+    const wait = Math.max(1, limits.wait_minutes || 15);
+    throw new HttpError(429, `Too many wrong passwords. Sign-in is paused; try again in ${wait} minute${wait === 1 ? '' : 's'}.`);
   }
 
   const users = await sql('SELECT id, email, name, password_hash, avatar_updated_at FROM users WHERE email = $1', [mail]);
@@ -77,7 +80,14 @@ async function login(req, res) {
   if (!user || !ok) {
     await sql('INSERT INTO login_attempts (email, ip) VALUES ($1, $2)', [mail, ip]);
     await sql(`DELETE FROM login_attempts WHERE created_at < now() - interval '1 day'`);
-    throw new HttpError(401, 'Email or password is incorrect');
+    // Same message whether or not the email exists; only the remaining tries are added.
+    const left = MAX_FAILS_PER_EMAIL - (limits.by_email + 1);
+    const hint = left <= 0
+      ? ' Sign-in is now paused for 15 minutes.'
+      : left <= 3
+        ? ` ${left} ${left === 1 ? 'try' : 'tries'} left before sign-in pauses for 15 minutes.`
+        : '';
+    throw new HttpError(401, `Email or password is incorrect.${hint}`);
   }
 
   await sql('DELETE FROM login_attempts WHERE email = $1', [mail]);
