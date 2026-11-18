@@ -27,6 +27,7 @@ import Sidebar from '../components/Sidebar';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
 import { useLayout, column, gridRow, gridItem, MAX_WIDTH } from '../lib/responsive';
+import { useMenuButton } from '../context/LayoutContext';
 
 const GRID_GAP = 16;
 
@@ -35,6 +36,7 @@ const FoldersScreen = ({ navigation, route }) => {
   const { folders, addFolder, getNoteCount } = useNotes();
   const { columns } = useLayout();
   const [showSidebar, setShowSidebar] = React.useState(false);
+  const onMenu = useMenuButton(() => setShowSidebar(true));
 
   React.useEffect(() => {
     if (route.params?.newFolder) {
@@ -61,7 +63,7 @@ const FoldersScreen = ({ navigation, route }) => {
       
       {/* Header */}
       <View style={[styles.header, { backgroundColor: isDark ? colors.card : colors.white, borderBottomWidth: isDark ? 1 : 0, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => setShowSidebar(true)}>
+        <TouchableOpacity onPress={onMenu} accessibilityLabel="Menu">
           <Menu size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Folders</Text>

@@ -36,6 +36,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 import { useNotes } from '../context/NoteContext';
 import { useLayout, column, gridRow, gridItem, MAX_WIDTH } from '../lib/responsive';
+import { useMenuButton } from '../context/LayoutContext';
 
 const GRID_GAP = 20;
 
@@ -44,6 +45,7 @@ const DashboardScreen = ({ navigation }) => {
   const { notes, folders, deleteNote, updateNote } = useNotes();
   const { columns } = useLayout();
   const [showSidebar, setShowSidebar] = useState(false);
+  const onMenu = useMenuButton(() => setShowSidebar(true));
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedNote, setSelectedNote] = useState(null);
@@ -111,7 +113,7 @@ const DashboardScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: isDark ? colors.card : colors.white }]}>
-        <TouchableOpacity onPress={() => setShowSidebar(true)}>
+        <TouchableOpacity onPress={onMenu} accessibilityLabel="Menu">
           <Menu size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>My Notes</Text>

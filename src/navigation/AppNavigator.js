@@ -29,10 +29,12 @@ const Tab = createBottomTabNavigator();
 
 import { useTheme } from '../theme/ThemeContext';
 import { useLayout } from '../lib/responsive';
+import { useRail } from '../context/LayoutContext';
 
 const TabNavigator = () => {
   const { colors, isDark } = useTheme();
   const { isPhone, isDesktop } = useLayout();
+  const { railHidden } = useRail();
 
   // Phones: tab bar along the bottom. Tablet: icon rail on the left. Desktop: labelled side rail.
   const tabBarStyle = isPhone
@@ -69,7 +71,7 @@ const TabNavigator = () => {
         tabBarLabelPosition: isDesktop ? 'beside-icon' : 'below-icon',
         // A left rail with labels under icons is only supported by the material variant.
         tabBarVariant: isPhone || isDesktop ? 'uikit' : 'material',
-        tabBarStyle,
+        tabBarStyle: !isPhone && railHidden ? { display: 'none' } : tabBarStyle,
         tabBarItemStyle: isPhone ? undefined : { borderRadius: 12, marginBottom: 4, maxHeight: isDesktop ? 48 : 64 },
         tabBarActiveBackgroundColor: isPhone ? undefined : colors.primary + '14',
         tabBarLabelStyle: isDesktop
@@ -109,7 +111,15 @@ const AppNavigator = () => {
       documentTitle={{
         // Browser tab title, e.g. "Notes – Swift Notes".
         formatter: (options, route) => {
-          const name = options?.title || route?.name;
+          const friendly = {
+            Editor: 'Note',
+            FolderDetail: 'Folder',
+            WorkspaceDetail: 'Workspace',
+            AddFolder: 'New folder',
+            AINote: 'AI assistant',
+            Register: 'Create account',
+          };
+          const name = options?.title || friendly[route?.name] || route?.name;
           return !name || ['Splash', 'Main'].includes(name) ? 'Swift Notes' : `${name} – Swift Notes`;
         },
       }}

@@ -63,14 +63,7 @@ const Sidebar = ({ navigation, onClose, currentRoute }) => {
     <View style={[styles.container, { backgroundColor: colors.card }]}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200' }} 
-            style={styles.avatar} 
-          />
-          <View style={styles.profileText}>
-            <Text style={[styles.profileName, { color: colors.text }]}>{user?.name}</Text>
-            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
-          </View>
+          <Text style={[styles.profileName, { color: colors.text, flex: 1 }]}>Swift Notes</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>

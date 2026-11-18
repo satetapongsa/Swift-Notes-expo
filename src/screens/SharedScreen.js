@@ -52,6 +52,7 @@ import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../lib/confirm';
 import { column, MAX_WIDTH } from '../lib/responsive';
 import { FEATURES } from '../config/features';
+import { useMenuButton } from '../context/LayoutContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -63,6 +64,7 @@ const SharedScreen = ({ navigation }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const onMenu = useMenuButton(() => setShowSidebar(true));
   const [showToast, setShowToast] = useState(false);
   const toastOpacity = React.useRef(new Animated.Value(0)).current;
 
@@ -220,7 +222,7 @@ const SharedScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: isDark ? colors.card : colors.white }]}>
-        <TouchableOpacity onPress={() => setShowSidebar(true)}>
+        <TouchableOpacity onPress={onMenu} accessibilityLabel="Menu">
           <Menu size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Shared</Text>
