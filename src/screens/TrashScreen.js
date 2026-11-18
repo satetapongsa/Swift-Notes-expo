@@ -26,10 +26,11 @@ import {
 import { useNotes } from '../context/NoteContext';
 import { useTheme } from '../theme/ThemeContext';
 import { column, MAX_WIDTH } from '../lib/responsive';
+import { confirmAction, notify } from '../lib/confirm';
 
 const TrashScreen = ({ navigation }) => {
   const { colors, isDark } = useTheme();
-  const { trash, restoreFromTrash, emptyTrash, passcode } = useNotes();
+  const { trash, restoreFromTrash, emptyTrash, deleteForever, passcode } = useNotes();
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [inputPasscode, setInputPasscode] = useState('');
 
@@ -41,22 +42,32 @@ const TrashScreen = ({ navigation }) => {
     }
   };
 
-  const confirmEmpty = () => {
-    Alert.alert(
-      "Empty Trash?",
-      "All items will be permanently deleted. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Empty", 
-          style: "destructive", 
-          onPress: () => {
-            emptyTrash();
-            Alert.alert("Success", "Trash has been emptied.");
-          } 
-        }
-      ]
+  const confirmEmpty = async () => {
+    const ok = await confirmAction(
+      'Empty Trash?',
+      'All items will be permanently deleted. This cannot be undone.',
+      'Empty',
     );
+    if (!ok) return;
+    try {
+      await emptyTrash();
+    } catch (e) {
+      notify(e.message);
+    }
+  };
+
+  const confirmDeleteForever = async note => {
+    const ok = await confirmAction(
+      'Delete forever?',
+      `"${note.title || 'Untitled note'}" will be permanently deleted. This cannot be undone.`,
+      'Delete',
+    );
+    if (!ok) return;
+    try {
+      await deleteForever(note.id);
+    } catch (e) {
+      notify(e.message);
+    }
   };
 
   const verifyAndEmpty = () => {
@@ -65,7 +76,7 @@ const TrashScreen = ({ navigation }) => {
       setInputPasscode('');
       confirmEmpty();
     } else {
-      Alert.alert("Error", "Incorrect passcode.");
+      notify('Incorrect passcode.');
       setInputPasscode('');
     }
   };
@@ -132,8 +143,11 @@ const TrashScreen = ({ navigation }) => {
                   <View style={styles.cardHeader}>
                     <Text style={[styles.cardTitle, { color: colors.text }]}>{note.title}</Text>
                     <View style={styles.actions}>
-                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.background }]} onPress={() => restoreFromTrash(note.id, 'note')}>
+                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.background }]} onPress={() => restoreFromTrash(note.id, 'note')} accessibilityLabel="Restore note">
                         <RefreshCw size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.background, marginLeft: 8 }]} onPress={() => confirmDeleteForever(note)} accessibilityLabel="Delete forever">
+                        <Trash2 size={18} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>
