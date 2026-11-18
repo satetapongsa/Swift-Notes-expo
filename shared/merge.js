@@ -27,4 +27,11 @@ function merge3(base, mine, theirs) {
   return result + sep + lost;
 }
 
-module.exports = { merge3 };
+// Where a cursor at `index` in `oldText` should land in `newText`.
+function mapCursor(oldText, newText, index) {
+  if (oldText === newText) return index;
+  const diffs = dmp.diff_main(oldText ?? '', newText ?? '');
+  return Math.min(dmp.diff_xIndex(diffs, index), (newText ?? '').length);
+}
+
+module.exports = { merge3, mapCursor };

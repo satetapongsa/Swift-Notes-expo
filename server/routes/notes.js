@@ -142,14 +142,17 @@ async function heartbeat(req, res, { id }) {
   const row = await loadNote(sql, user.id, noteId);
   if (row.deleted_at) throw new HttpError(404, 'Note not found');
 
+  const field = body.field === 'title' ? 'title' : 'content';
+  const line = Number.isInteger(body.line) && body.line > 0 && body.line < 1000000 ? body.line : null;
   await sql(
-    `INSERT INTO note_presence (note_id, user_id, editing, seen_at) VALUES ($1, $2, $3, now())
-     ON CONFLICT (note_id, user_id) DO UPDATE SET editing = EXCLUDED.editing, seen_at = now()`,
-    [noteId, user.id, Boolean(body.editing)],
+    `INSERT INTO note_presence (note_id, user_id, editing, field, line, seen_at) VALUES ($1, $2, $3, $4, $5, now())
+     ON CONFLICT (note_id, user_id) DO UPDATE
+       SET editing = EXCLUDED.editing, field = EXCLUDED.field, line = EXCLUDED.line, seen_at = now()`,
+    [noteId, user.id, Boolean(body.editing), field, line],
   );
   const viewers = await sql(
-    `SELECT u.id, u.name, p.editing FROM note_presence p JOIN users u ON u.id = p.user_id
-      WHERE p.note_id = $1 AND p.user_id <> $2 AND p.seen_at > now() - interval '8 seconds'
+    `SELECT u.id, u.name, p.editing, p.field, p.line FROM note_presence p JOIN users u ON u.id = p.user_id
+      WHERE p.note_id = $1 AND p.user_id <> $2 AND p.seen_at > now() - interval '6 seconds'
       ORDER BY u.name`,
     [noteId, user.id],
   );
