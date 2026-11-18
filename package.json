@@ -9,7 +9,9 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "start": "expo start",
-    "test": "jest"
+    "test": "jest",
+    "build": "expo export -p web",
+    "serve:web": "npx serve dist --single"
   },
   "dependencies": {
     "@expo/metro-runtime": "^55.0.9",
