@@ -167,9 +167,7 @@ const SettingsScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: colors.lightGray }]}>
-          <ChevronLeft size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
         <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -301,7 +299,7 @@ const SettingsScreen = ({ navigation }) => {
             <SettingItem
               icon={<Trash2 size={20} color={colors.danger} />}
               label="Trash Bin"
-              value={trash.workspaces.length + trash.notes.length > 0 ? `${trash.workspaces.length + trash.notes.length} total items` : "Clean"}
+              value={trash.workspaces.length + trash.notes.length > 0 ? `${trash.workspaces.length + trash.notes.length} ${trash.workspaces.length + trash.notes.length === 1 ? 'item' : 'items'}` : "Clean"}
               onPress={() => navigation.navigate('Trash')}
             />
           </View>
@@ -387,7 +385,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     padding: 8,
-    borderRadius: 15,
+    borderRadius: 999,
     borderWidth: 3,
     borderColor: 'transparent',
   },
@@ -410,7 +408,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   card: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -422,7 +420,7 @@ const styles = StyleSheet.create({
   settingIconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -450,7 +448,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
     padding: 15,
-    borderRadius: 15,
+    borderRadius: 12,
   },
   logoutText: {
     fontSize: 16,

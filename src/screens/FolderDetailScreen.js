@@ -25,7 +25,7 @@ const FolderDetailScreen = ({ route, navigation }) => {
 
   const renderNoteItem = ({ item }) => (
     <TouchableOpacity
-      style={[styles.noteItem, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+      style={[styles.noteItem, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => navigation.navigate('Editor', { note: item })}
     >
       <View style={[styles.noteIcon, { backgroundColor: (isAll && folderOf(item) ? folderOf(item).color : folder.color) + '15' }]}>
@@ -129,8 +129,10 @@ const styles = StyleSheet.create({
   noteItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderRadius: 16,
   },
   noteIcon: {
     width: 44,
@@ -193,7 +195,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 20,
     elevation: 4,
   },
   createButtonText: {

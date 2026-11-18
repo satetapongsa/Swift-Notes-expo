@@ -89,8 +89,8 @@ const TrashScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: isDark ? colors.card : colors.white, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color={colors.primary} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: colors.lightGray }]} accessibilityLabel="Back">
+          <ChevronLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Trash</Text>
         <TouchableOpacity onPress={handleEmptyTrash} disabled={totalItems === 0}>
@@ -105,7 +105,7 @@ const TrashScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.selectionBar}>
-          <Text style={[styles.itemCount, { color: colors.placeholder }]}>{totalItems} ITEMS</Text>
+          <Text style={[styles.itemCount, { color: colors.placeholder }]}>{totalItems} {totalItems === 1 ? 'item' : 'items'}</Text>
         </View>
 
         {totalItems === 0 ? (
@@ -151,7 +151,7 @@ const TrashScreen = ({ navigation }) => {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  <Text style={[styles.deletedDate, { color: colors.placeholder }]}>Deleted Note</Text>
+                  <Text style={[styles.deletedDate, { color: colors.placeholder }]}>In trash</Text>
                   <Text style={[styles.snippet, { color: colors.textSecondary }]} numberOfLines={2}>{note.content}</Text>
                 </View>
               </View>
@@ -217,7 +217,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   backButton: {
-    padding: 5,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     fontSize: 16,
@@ -230,7 +234,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 12,
     marginBottom: 25,
   },
   infoText: {
@@ -251,7 +255,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     padding: 20,
-    borderRadius: 20,
+    borderRadius: 16,
     marginBottom: 15,
     borderWidth: 1,
   },
@@ -282,7 +286,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 8,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   deletedDate: {
     fontSize: 12,
@@ -309,7 +313,7 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     alignSelf: 'center',
     padding: 30,
-    borderRadius: 30,
+    borderRadius: 20,
     elevation: 20,
   },
   passcodeTitle: {
@@ -327,7 +331,7 @@ const styles = StyleSheet.create({
   passcodeInput: {
     height: 55,
     borderWidth: 1,
-    borderRadius: 15,
+    borderRadius: 12,
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '800',
