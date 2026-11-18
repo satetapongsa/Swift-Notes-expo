@@ -298,6 +298,11 @@ const SharedScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
+            {workspaces.length === 0 && (
+              <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
+                No workspaces yet. Tap + to create one, then invite people by email to share its notes.
+              </Text>
+            )}
             {workspaces.map(ws => {
               const renderRightActions = (progress, dragX) => {
                 const trans = dragX.interpolate({
@@ -426,6 +431,11 @@ const SharedScreen = ({ navigation }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Shared Notes</Text>
         </View>
 
+        {sharedNotes.length === 0 && (
+          <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
+            Notes you share, or that others share with you, show up here. Open a note and tap Share to invite someone.
+          </Text>
+        )}
         {sharedNotes.map(note => (
           <TouchableOpacity key={note.id} style={[styles.noteCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => navigation.navigate('Editor', { note })}>
             <View style={styles.noteHeader}>
@@ -755,6 +765,11 @@ const SharedScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  emptyHint: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
   container: {
     flex: 1,
   },
