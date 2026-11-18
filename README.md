@@ -12,9 +12,10 @@ A collaborative note-taking app built with React Native and Expo, running as a r
 - **Private by default** – every note belongs to its author and is invisible to everyone else until shared.
 - **Sharing** – share a single note with another account by email, as *Can edit* or *Can view*.
 - **Workspaces** – group notes into a shared space and invite members by email.
-- **Live collaboration** – an open note picks up edits from other people within about two seconds and shows who changed it last.
-- **Folders and search** – organise notes into folders and search them from the dashboard.
-- **Trash** – deleted notes can be restored, or the trash emptied for good.
+- **Live collaboration** – edits from other people appear within about two seconds. When two people change the same note at once, their edits are merged instead of overwritten.
+- **Presence** – see who else has a note open and who is typing right now.
+- **Pins, tags and folders** – pin notes to the top, tag them, move them between folders, and filter the dashboard by pin or tag.
+- **Trash** – restore deleted notes, delete a single note forever, or empty the trash.
 - **Responsive layout** – bottom tabs on phones, an icon rail on tablets and a labelled side rail with a multi-column grid on desktop. Every screen and feature is the same at every size.
 - **Dark mode** – switch themes from Settings.
 
@@ -121,6 +122,7 @@ All endpoints are under `/api` and exchange JSON. Every endpoint except the auth
 | `POST` | `/notes` | Create a note |
 | `GET` / `PATCH` / `DELETE` | `/notes/:id` | Read, update or trash a note |
 | `POST` | `/notes/:id/restore` | Restore from trash |
+| `POST` / `DELETE` | `/notes/:id/presence` | Report or clear "I have this note open" and get who else is in it |
 | `GET` / `POST` | `/notes/:id/shares` | List or add people on a note |
 | `DELETE` | `/notes/:id/shares/:userId` | Remove someone from a note |
 | `DELETE` | `/trash` | Empty the trash |
@@ -143,11 +145,12 @@ All endpoints are under `/api` and exchange JSON. Every endpoint except the auth
 
 Vercel functions can't hold WebSocket connections, so live updates use short polling:
 
-- An open note checks for a newer version every 2 seconds and applies it once you've stopped typing for 1.5 seconds.
+- Edits are saved 600 ms after the last keystroke. Each save carries the version it was based on.
+- If someone else saved in between, the server runs a three-way merge (`shared/merge.js`, built on diff-match-patch) between the common base, your text and theirs, so both sets of changes are kept. The write only succeeds if the version is still current; otherwise it merges again.
+- An open note sends a presence heartbeat every 2 seconds. The response carries the latest version and the people currently in the note. Remote changes are applied once you've stopped typing for 1.5 seconds, and anything you typed meanwhile is merged on top.
 - The note list, folders and workspaces refresh every 3 seconds. The server returns `unchanged` when nothing has changed, so idle polling stays cheap.
-- Edits are saved 600 ms after the last keystroke.
 
-If two people type in the same note at exactly the same moment, the later save wins. Character-level merging (for example with a CRDT) is on the roadmap.
+Merging works line and phrase-wise. If two people rewrite the exact same words at the same moment, the result can contain both versions side by side for one of them to tidy up.
 
 ## Project structure
 
@@ -156,7 +159,9 @@ api/router.js        Vercel entry point for every /api route
 server/              API: routing, auth, validation, access rules, route handlers
 db/schema.sql        Database schema
 scripts/             Migration script and local web + API server
+shared/merge.js      Three-way text merge used by the API and the app
 src/
+  config/features.js Flags for features that exist in code but are hidden until finished
   context/           Auth and notes state (sync, sharing, workspaces)
   lib/               API client, responsive layout helpers, dialogs
   navigation/        Stack and tab navigation
@@ -167,11 +172,24 @@ src/
 
 ## Roadmap
 
-- Character-level merging for simultaneous edits
-- Password reset by email
-- Pinning and tagging notes from the app (already supported by the API)
-- AI summaries generated on the server (currently a local preview)
+These features already have screens in the code but are hidden from the app until they work end to end. Each one is switched by a flag in [`src/config/features.js`](src/config/features.js).
+
+| Flag | Feature | What is missing |
+| --- | --- | --- |
+| `aiAssistant` | AI summary and AI assistant in the editor | Answers are mocked; needs a server-side model call |
+| `appLock` | Passcode lock and Face ID | Settings are not saved and nothing is locked yet |
+| `notifications` | Notification settings and inbox | Shows sample data only |
+| `profileEditing` | Edit name and email | No screen yet |
+| `securityCenter` | Security overview | No screen yet |
+| `workspaceLinkSharing` | Join a workspace by link | No join flow on the server |
+| `workspaceInvites` | Accept or decline invitations | Members are added directly by email for now |
+| `helpCenter` | Help & Support | Not written yet |
+
+Also planned:
+
+- Password reset and email verification
 - Sharing notes by public link
+- Real-time transport over WebSockets instead of polling
 
 ---
 
