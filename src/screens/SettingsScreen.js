@@ -29,6 +29,7 @@ import { useNotes } from '../context/NoteContext';
 import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../lib/confirm';
 import { column, MAX_WIDTH } from '../lib/responsive';
+import { FEATURES } from '../config/features';
 
 const SettingsScreen = ({ navigation }) => {
   const { isDark, toggleTheme, colors, typography } = useTheme();
@@ -104,11 +105,15 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>ACCOUNT & PREFERENCE</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SettingItem
-              icon={<User size={20} color={colors.primary} />}
-              label="Personal Information"
-            />
-            <View style={[styles.line, { backgroundColor: colors.border }]} />
+            {FEATURES.profileEditing && (
+              <>
+                <SettingItem
+                  icon={<User size={20} color={colors.primary} />}
+                  label="Personal Information"
+                />
+                <View style={[styles.line, { backgroundColor: colors.border }]} />
+              </>
+            )}
             <SettingItem
               icon={<Sun size={20} color={colors.warning} />}
               label="Dark Mode"
@@ -116,23 +121,32 @@ const SettingsScreen = ({ navigation }) => {
               switchValue={isDark}
               onSwitchChange={toggleTheme}
             />
-            <View style={[styles.line, { backgroundColor: colors.border }]} />
-            <SettingItem
-              icon={<Bell size={20} color={colors.danger} />}
-              label="Notifications"
-            />
+            {FEATURES.notifications && (
+              <>
+                <View style={[styles.line, { backgroundColor: colors.border }]} />
+                <SettingItem
+                  icon={<Bell size={20} color={colors.danger} />}
+                  label="Notifications"
+                />
+              </>
+            )}
           </View>
         </View>
 
         {/* Security & Privacy */}
+        {(FEATURES.securityCenter || FEATURES.appLock) && (
         <View style={styles.section}>
           <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>SECURITY & PRIVACY</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SettingItem
-              icon={<Shield size={20} color={colors.primary} />}
-              label="Security Center"
-            />
-            <View style={[styles.line, { backgroundColor: colors.border }]} />
+            {FEATURES.securityCenter && (
+              <SettingItem
+                icon={<Shield size={20} color={colors.primary} />}
+                label="Security Center"
+              />
+            )}
+            {FEATURES.securityCenter && FEATURES.appLock && <View style={[styles.line, { backgroundColor: colors.border }]} />}
+            {FEATURES.appLock && (
+            <>
             <SettingItem
               icon={<Lock size={20} color={colors.textSecondary} />}
               label="Passcode Lock"
@@ -154,8 +168,11 @@ const SettingsScreen = ({ navigation }) => {
                 if (val) navigation.navigate('Biometric');
               }}
             />
+            </>
+            )}
           </View>
         </View>
+        )}
 
         {/* Trash & Cleanup */}
         <View style={styles.section}>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { FEATURES } from '../config/features';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,8 +45,8 @@ const Sidebar = ({ navigation, onClose, currentRoute }) => {
 
   const footerItems = [
     { label: 'Settings', icon: <Settings size={22} />, route: 'Settings' },
-    { label: 'Help & Support', icon: <HelpCircle size={22} />, route: 'Help' },
-  ];
+    { label: 'Help & Support', icon: <HelpCircle size={22} />, route: 'Help', hidden: !FEATURES.helpCenter },
+  ].filter(item => !item.hidden);
 
   const handleNavigate = (route) => {
     onClose();

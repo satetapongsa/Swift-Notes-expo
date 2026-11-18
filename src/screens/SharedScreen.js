@@ -51,12 +51,13 @@ import { useNotes } from '../context/NoteContext';
 import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../lib/confirm';
 import { column, MAX_WIDTH } from '../lib/responsive';
+import { FEATURES } from '../config/features';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SharedScreen = ({ navigation }) => {
   const { colors, typography, isDark } = useTheme();
-  const { workspaces, notes, addWorkspace, addMemberToWorkspace, updateWorkspace, deleteWorkspace } = useNotes();
+  const { workspaces, notes, addWorkspace, addMemberToWorkspace, updateWorkspace, deleteWorkspace, removeMemberFromWorkspace } = useNotes();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -241,6 +242,7 @@ const SharedScreen = ({ navigation }) => {
         >
           <Text style={[styles.tabText, activeTab === 'recent' ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary }]}>Recent</Text>
         </TouchableOpacity>
+        {FEATURES.workspaceInvites && (
         <TouchableOpacity
           style={[styles.tab, activeTab === 'invites' && [styles.tabActive, { borderBottomColor: colors.primary }]]}
           onPress={() => setActiveTab('invites')}
@@ -254,6 +256,7 @@ const SharedScreen = ({ navigation }) => {
             )}
           </View>
         </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={[styles.scrollContent, column(MAX_WIDTH.reading)]} showsVerticalScrollIndicator={false}>
@@ -378,7 +381,7 @@ const SharedScreen = ({ navigation }) => {
           </>
         )}
 
-        {activeTab === 'invites' && (
+        {FEATURES.workspaceInvites && activeTab === 'invites' && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 20 }]}>Pending Invitations</Text>
             {invitations.length === 0 ? (
@@ -425,7 +428,7 @@ const SharedScreen = ({ navigation }) => {
           <TouchableOpacity key={note.id} style={[styles.noteCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => navigation.navigate('Editor', { note })}>
             <View style={styles.noteHeader}>
               <Text style={[styles.noteTitle, { color: colors.text }]}>{note.title}</Text>
-              <TouchableOpacity onPress={() => setShowShareModal(true)}>
+              <TouchableOpacity onPress={() => navigation.navigate('Editor', { note, openShare: true })}>
                 <Share2 size={18} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -539,8 +542,10 @@ const SharedScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Collaborate with your team. Anyone with the link can join if enabled.</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Invite people by the email they signed up with. Members can open and edit the notes in this workspace.</Text>
 
+            {FEATURES.workspaceLinkSharing && (
+            <>
             <View style={[styles.shareToggleRow, { borderBottomColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.toggleLabel, { color: colors.text }]}>Link Sharing</Text>
@@ -563,6 +568,17 @@ const SharedScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             )}
+            </>
+            )}
+
+            {selectedWorkspace?.role === 'Owner' && (
+              <TouchableOpacity
+                style={[styles.copyButton, { backgroundColor: colors.primary, alignSelf: 'flex-start', marginBottom: 16 }]}
+                onPress={() => { setShowShareModal(false); openInvite(selectedWorkspace.id); }}
+              >
+                <Text style={{ color: colors.white, fontWeight: '700' }}>Invite by email</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.memberHeader}>
               <Text style={[styles.memberSectionTitle, { color: colors.text }]}>Members</Text>
@@ -581,12 +597,18 @@ const SharedScreen = ({ navigation }) => {
                     <Text style={[styles.memberName, { color: colors.text }]}>{member.name}</Text>
                     <Text style={[styles.memberRoleLabel, { color: colors.textSecondary }]}>{member.role}</Text>
                   </View>
-                  {selectedWorkspace.role === 'Owner' && member.role !== 'Admin' ? (
-                    <TouchableOpacity style={styles.removeButton}>
+                  {selectedWorkspace.role === 'Owner' && member.role !== 'Owner' ? (
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={async () => {
+                        await removeMemberFromWorkspace(selectedWorkspace.id, member.id);
+                        setSelectedWorkspace(ws => ({ ...ws, members: ws.members.filter(m => m.id !== member.id) }));
+                      }}
+                    >
                       <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>REMOVE</Text>
                     </TouchableOpacity>
                   ) : (
-                    <Text style={[styles.roleTagText, { color: colors.placeholder }]}>{member.role === 'Admin' ? 'ADMIN' : ''}</Text>
+                    <Text style={[styles.roleTagText, { color: colors.placeholder }]}>{member.role === 'Owner' ? 'OWNER' : ''}</Text>
                   )}
                 </View>
               ))}
