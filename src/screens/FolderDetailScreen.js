@@ -1,14 +1,14 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  SafeAreaView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
   FlatList,
   StatusBar
 } from 'react-native';
-import { ChevronLeft, FileText, MoreVertical, Plus } from 'lucide-react-native';
+import { ChevronLeft, FileText, Plus } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotes } from '../context/NoteContext';
 import { column, MAX_WIDTH } from '../lib/responsive';
@@ -16,35 +16,44 @@ import { column, MAX_WIDTH } from '../lib/responsive';
 const FolderDetailScreen = ({ route, navigation }) => {
   const { folder } = route.params;
   const { colors, isDark } = useTheme();
-  const { notes } = useNotes();
+  const { notes, folders } = useNotes();
 
-  // Filter notes belonging to this folder
-  const folderNotes = notes.filter(note => note.folderId === folder.id);
+  // "All Notes" shows every note; any other folder shows only its own notes.
+  const isAll = folder.id === 'default';
+  const folderNotes = isAll ? notes : notes.filter(note => note.folderId === folder.id);
+  const folderOf = note => folders.find(f => f.id === note.folderId && f.id !== 'default');
 
   const renderNoteItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.noteItem, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       onPress={() => navigation.navigate('Editor', { note: item })}
     >
-      <View style={[styles.noteIcon, { backgroundColor: folder.color + '15' }]}>
-        <FileText size={20} color={folder.color} />
+      <View style={[styles.noteIcon, { backgroundColor: (isAll && folderOf(item) ? folderOf(item).color : folder.color) + '15' }]}>
+        <FileText size={20} color={isAll && folderOf(item) ? folderOf(item).color : folder.color} />
       </View>
       <View style={styles.noteContent}>
         <Text style={[styles.noteTitle, { color: colors.text }]} numberOfLines={1}>
           {item.title || 'Untitled Note'}
         </Text>
         <Text style={[styles.noteSnippet, { color: colors.textSecondary }]} numberOfLines={1}>
-          {item.content || item.snippet || 'No content yet...'}
+          {item.snippet || 'No content yet...'}
         </Text>
+        {isAll && folderOf(item) && (
+          <View style={[styles.folderBadge, { backgroundColor: folderOf(item).color + '1A' }]}>
+            <View style={[styles.folderDot, { backgroundColor: folderOf(item).color }]} />
+            <Text style={[styles.folderBadgeText, { color: folderOf(item).color }]} numberOfLines={1}>
+              {folderOf(item).name}
+            </Text>
+          </View>
+        )}
       </View>
-      <MoreVertical size={20} color={colors.placeholder} />
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -54,8 +63,12 @@ const FolderDetailScreen = ({ route, navigation }) => {
           <Text style={[styles.folderName, { color: colors.text }]}>{folder.name}</Text>
           <Text style={[styles.noteCount, { color: colors.textSecondary }]}>{folderNotes.length} notes</Text>
         </View>
-        <TouchableOpacity style={styles.moreButton}>
-          <MoreVertical size={24} color={colors.text} />
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.navigate('Editor', { folderId: isAll ? undefined : folder.id })}
+          accessibilityLabel="New note"
+        >
+          <Plus size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -67,10 +80,10 @@ const FolderDetailScreen = ({ route, navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <FileText size={60} color={colors.placeholder} opacity={0.3} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No notes in this folder</Text>
-            <TouchableOpacity 
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{isAll ? 'No notes yet' : 'No notes in this folder'}</Text>
+            <TouchableOpacity
               style={[styles.createButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('Editor', { folderId: folder.id })}
+              onPress={() => navigation.navigate('Editor', { folderId: isAll ? undefined : folder.id })}
             >
               <Plus size={20} color="#FFF" />
               <Text style={styles.createButtonText}>Create first note</Text>
@@ -137,6 +150,33 @@ const styles = StyleSheet.create({
   },
   noteSnippet: {
     fontSize: 13,
+  },
+  folderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 6,
+    maxWidth: 200,
+  },
+  folderDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  folderBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyContainer: {
     alignItems: 'center',
