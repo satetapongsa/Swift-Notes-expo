@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,22 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [capsLock, setCapsLock] = useState(false);
+
+  // Common reasons a correct password is rejected: Caps Lock, or a Thai keyboard layout.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return undefined;
+    const check = e => {
+      if (typeof e.getModifierState === 'function') setCapsLock(e.getModifierState('CapsLock'));
+    };
+    window.addEventListener('keydown', check);
+    window.addEventListener('keyup', check);
+    return () => {
+      window.removeEventListener('keydown', check);
+      window.removeEventListener('keyup', check);
+    };
+  }, []);
+  const typingThai = /[฀-๿]/.test(password);
 
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password) {
@@ -102,6 +118,8 @@ const LoginScreen = ({ navigation }) => {
                   )}
                 </TouchableOpacity>
               </View>
+              {capsLock && <Text style={styles.warnText}>Caps Lock is on</Text>}
+              {typingThai && <Text style={styles.warnText}>Your keyboard is typing Thai characters (ภาษาไทย). Switch to English if your password is in English.</Text>}
             </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -134,6 +152,11 @@ const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  warnText: {
+    color: '#B26A00',
+    fontSize: 13,
+    marginTop: 6,
+  },
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
