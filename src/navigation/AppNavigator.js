@@ -28,10 +28,32 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 import { useTheme } from '../theme/ThemeContext';
+import { useLayout } from '../lib/responsive';
 
 const TabNavigator = () => {
   const { colors, isDark } = useTheme();
-  
+  const { isPhone, isDesktop } = useLayout();
+
+  // Phones: tab bar along the bottom. Tablet: icon rail on the left. Desktop: labelled side rail.
+  const tabBarStyle = isPhone
+    ? {
+        height: 80,
+        paddingBottom: 25,
+        paddingTop: 10,
+        backgroundColor: isDark ? colors.card : colors.white,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+      }
+    : {
+        width: isDesktop ? 220 : 88,
+        minWidth: isDesktop ? 220 : 88, // the library defaults side rails to 360px
+        paddingTop: 24,
+        paddingHorizontal: isDesktop ? 12 : 8,
+        backgroundColor: isDark ? colors.card : colors.white,
+        borderRightWidth: 1,
+        borderRightColor: colors.border,
+      };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -43,19 +65,16 @@ const TabNavigator = () => {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          height: 80,
-          paddingBottom: 25,
-          paddingTop: 10,
-          backgroundColor: isDark ? colors.card : colors.white,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          textTransform: 'uppercase',
-        },
+        tabBarPosition: isPhone ? 'bottom' : 'left',
+        tabBarLabelPosition: isDesktop ? 'beside-icon' : 'below-icon',
+        // A left rail with labels under icons is only supported by the material variant.
+        tabBarVariant: isPhone || isDesktop ? 'uikit' : 'material',
+        tabBarStyle,
+        tabBarItemStyle: isPhone ? undefined : { borderRadius: 12, marginBottom: 4, maxHeight: isDesktop ? 48 : 64 },
+        tabBarActiveBackgroundColor: isPhone ? undefined : colors.primary + '14',
+        tabBarLabelStyle: isDesktop
+          ? { fontSize: 15, fontWeight: '600', marginLeft: 12 }
+          : { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
         headerShown: false,
       })}
     >
