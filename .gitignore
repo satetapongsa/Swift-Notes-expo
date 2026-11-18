@@ -77,3 +77,8 @@ yarn-error.log
 # Expo web build output
 dist/
 web-build/
+
+# Local secrets
+.env
+.env.*
+!.env.example
