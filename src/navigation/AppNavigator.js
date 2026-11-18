@@ -39,9 +39,9 @@ const TabNavigator = () => {
   // Phones: tab bar along the bottom. Tablet: icon rail on the left. Desktop: labelled side rail.
   const tabBarStyle = isPhone
     ? {
-        height: 80,
-        paddingBottom: 25,
-        paddingTop: 10,
+        height: 72,
+        paddingTop: 6,
+        paddingBottom: 10,
         backgroundColor: isDark ? colors.card : colors.white,
         borderTopWidth: 1,
         borderTopColor: colors.border,
@@ -76,7 +76,7 @@ const TabNavigator = () => {
         tabBarActiveBackgroundColor: isPhone ? undefined : colors.primary + '14',
         tabBarLabelStyle: isDesktop
           ? { fontSize: 15, fontWeight: '600', marginLeft: 12 }
-          : { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+          : { fontSize: 11, fontWeight: '600', marginTop: 2 },
         headerShown: false,
       })}
     >
