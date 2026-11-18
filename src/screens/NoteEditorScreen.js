@@ -39,9 +39,10 @@ import { useAuth } from '../context/AuthContext';
 import * as Clipboard from 'expo-clipboard';
 import { api } from '../lib/api';
 import { merge3, mapCursor } from '../../shared/merge';
-import { column, MAX_WIDTH } from '../lib/responsive';
+import { column, MAX_WIDTH, useLayout } from '../lib/responsive';
 import { FEATURES } from '../config/features';
 import { confirmAction } from '../lib/confirm';
+import AISummaryDialog from '../components/AISummaryDialog';
 
 // How often an open note checks for edits: fast while someone else is in it.
 const FAST_POLL_MS = 600;
@@ -91,6 +92,7 @@ function timeAgo(iso) {
 const NoteEditorScreen = ({ route, navigation }) => {
   const { note: initialNote, folderId, workspace: workspaceParam, openShare: openShareOnStart } = route.params || {};
   const { colors, isDark } = useTheme();
+  const { isPhone } = useLayout();
   const { user } = useAuth();
   const { addNote, updateNote, workspaces, listNoteShares, shareNote, unshareNote } = useNotes();
 
@@ -402,6 +404,14 @@ const NoteEditorScreen = ({ route, navigation }) => {
     el.style.height = `${Math.max(contentMinHeight, el.scrollHeight)}px`;
   }, [content, contentMinHeight]);
 
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const el = titleRef.current;
+    if (!el || !el.style) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
+
   const contentSel = () => {
     const len = local.current.content.length;
     // Web: the text box keeps its selection after a toolbar button takes focus, so read it directly.
@@ -629,9 +639,12 @@ const NoteEditorScreen = ({ route, navigation }) => {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
-          <TouchableOpacity onPress={close} style={[styles.backButton, { backgroundColor: colors.lightGray }]}>
+          <TouchableOpacity onPress={close} style={[styles.backButton, { backgroundColor: colors.lightGray }]} accessibilityLabel="Back">
             <ChevronLeft size={24} color={colors.text} />
           </TouchableOpacity>
+          <Text style={[styles.statusText, { color: colors.textSecondary }]} numberOfLines={1}>
+            {readOnly ? 'View only' : statusText}
+          </Text>
 
           {workspace && (
             <View style={styles.collaborationInfo}>
@@ -656,8 +669,8 @@ const NoteEditorScreen = ({ route, navigation }) => {
                )}
             </View>
           )}
-          <TouchableOpacity onPress={openShare} style={{ marginRight: 15 }}>
-            <Share2 size={24} color={colors.textSecondary} />
+          <TouchableOpacity onPress={openShare} style={[styles.headerIconButton, { backgroundColor: colors.lightGray }]} accessibilityLabel="Share note">
+            <Share2 size={20} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={close}>
             <Text style={[styles.saveText, { color: colors.primary }]}>Done</Text>
@@ -749,58 +762,52 @@ const NoteEditorScreen = ({ route, navigation }) => {
         </View>
       </Modal>
 
-      {/* Toolbar */}
-      <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity style={styles.toolbarItem} onPress={openShare}>
-          <UserPlus size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        <Text style={[styles.statusText, { color: colors.textSecondary }]} numberOfLines={1}>
-          {readOnly ? 'View only' : statusText}
-        </Text>
-
+      {/* Formatting + AI */}
+      <View style={[styles.toolRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        {!readOnly ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.formatScroll}
+            contentContainerStyle={styles.formatBarContent}
+            keyboardShouldPersistTaps="always"
+          >
+            {[
+              { key: 'check', label: 'Checklist', icon: <SquareCheck size={18} color={colors.text} />, onPress: toggleChecklist },
+              { key: 'strike', label: 'Strikethrough', icon: <Strikethrough size={18} color={colors.text} />, onPress: () => markSelection(STRIKE) },
+              { key: 'underline', label: 'Underline', icon: <Underline size={18} color={colors.text} />, onPress: () => markSelection(UNDERLINE) },
+              { key: 'yes', label: 'Insert check mark', text: '✓', color: colors.success, onPress: () => insertAtCursor('✓ ') },
+              { key: 'no', label: 'Insert cross mark', text: '✗', color: colors.danger, onPress: () => insertAtCursor('✗ ') },
+              { key: 'link', label: 'Add link', icon: <LinkIcon size={18} color={colors.text} />, onPress: openLinkModal },
+              { key: 'file', label: 'Attach file', icon: uploading ? <ActivityIndicator size="small" color={colors.primary} /> : <Paperclip size={18} color={colors.text} />, onPress: pickFile },
+            ].map(b => (
+              <TouchableOpacity
+                key={b.key}
+                onPress={b.onPress}
+                disabled={b.key === 'file' && uploading}
+                accessibilityLabel={b.label}
+                style={[styles.formatButton, { backgroundColor: colors.lightGray }]}
+              >
+                {b.icon || <Text style={{ color: b.color, fontSize: 18, fontWeight: '800' }}>{b.text}</Text>}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
         {FEATURES.aiSummary && (
           <TouchableOpacity style={[styles.aiButton, { backgroundColor: colors.primary }]} onPress={handleAISummarize} accessibilityLabel="Summarize this note with AI">
-            <Sparkles size={18} color={colors.white} />
-            <Text style={styles.aiButtonText}>Summarize</Text>
+            <Sparkles size={16} color={colors.white} />
+            {!isPhone && <Text style={styles.aiButtonText}>Summarize</Text>}
           </TouchableOpacity>
         )}
         {FEATURES.aiAssistant && (
           <TouchableOpacity style={[styles.aiButton, { backgroundColor: colors.primary, marginLeft: 8 }]} onPress={() => navigation.navigate('AINote', { title, content })}>
-            <Sparkles size={18} color={colors.white} />
+            <Sparkles size={16} color={colors.white} />
             <Text style={styles.aiButtonText}>AI Assistant</Text>
           </TouchableOpacity>
         )}
       </View>
-
-      {!readOnly && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.formatBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
-          contentContainerStyle={styles.formatBarContent}
-          keyboardShouldPersistTaps="always"
-        >
-          {[
-            { key: 'check', label: 'Checklist', icon: <SquareCheck size={18} color={colors.text} />, onPress: toggleChecklist },
-            { key: 'strike', label: 'Strikethrough', icon: <Strikethrough size={18} color={colors.text} />, onPress: () => markSelection(STRIKE) },
-            { key: 'underline', label: 'Underline', icon: <Underline size={18} color={colors.text} />, onPress: () => markSelection(UNDERLINE) },
-            { key: 'yes', label: 'Insert check mark', text: '✓', color: colors.success, onPress: () => insertAtCursor('✓ ') },
-            { key: 'no', label: 'Insert cross mark', text: '✗', color: colors.danger, onPress: () => insertAtCursor('✗ ') },
-            { key: 'link', label: 'Add link', icon: <LinkIcon size={18} color={colors.text} />, onPress: openLinkModal },
-            { key: 'file', label: 'Attach file', icon: uploading ? <ActivityIndicator size="small" color={colors.primary} /> : <Paperclip size={18} color={colors.text} />, onPress: pickFile },
-          ].map(b => (
-            <TouchableOpacity
-              key={b.key}
-              onPress={b.onPress}
-              disabled={b.key === 'file' && uploading}
-              accessibilityLabel={b.label}
-              style={[styles.formatButton, { backgroundColor: colors.lightGray }]}
-            >
-              {b.icon || <Text style={{ color: b.color, fontSize: 18, fontWeight: '800' }}>{b.text}</Text>}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
 
       {typers.length > 0 && (
         <View style={[styles.typingLine, { backgroundColor: avatarColor(typers[0].id) }]} />
@@ -825,6 +832,7 @@ const NoteEditorScreen = ({ route, navigation }) => {
           <TextInput
             style={[styles.titleInput, { color: colors.text }]}
             ref={titleRef}
+            numberOfLines={1}
             placeholder="Note Title"
             placeholderTextColor={colors.placeholder}
             value={title}
@@ -962,74 +970,48 @@ const NoteEditorScreen = ({ route, navigation }) => {
         </View>
       </Modal>
 
-      {/* AI Summary Modal */}
-      <Modal
+      <AISummaryDialog
         visible={showAIModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAIModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <View style={styles.modalHeader}>
-              <View style={styles.aiHeaderTitle}>
-                <Sparkles size={24} color={colors.primary} />
-                <Text style={[styles.modalTitle, { color: colors.text, marginLeft: 10 }]}>AI Summary</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowAIModal(false)}>
-                <X size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {isAISummarizing ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Reading your note…</Text>
-              </View>
-            ) : aiError ? (
-              <View style={styles.loadingContainer}>
-                <Text style={[styles.aiText, { color: colors.text, textAlign: 'center' }]}>{aiError}</Text>
-                <TouchableOpacity style={[styles.aiAction, { borderColor: colors.border, marginTop: 20 }]} onPress={handleAISummarize}>
-                  <Text style={{ color: colors.primary, fontWeight: '700' }}>Try again</Text>
-                </TouchableOpacity>
-              </View>
-            ) : aiResult ? (
-              <>
-                <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}>
-                  <Text style={[styles.aiText, { color: colors.text, marginBottom: 16 }]} selectable>{aiResult.summary}</Text>
-                  {aiResult.points.map((point, index) => (
-                    <View key={index} style={styles.aiPoint}>
-                      <View style={[styles.topicDot, { backgroundColor: colors.primary, marginTop: 9 }]} />
-                      <Text style={[styles.aiPointText, { color: colors.text }]} selectable>{point}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-
-                <View style={styles.aiActions}>
-                  <TouchableOpacity style={[styles.aiAction, { borderColor: colors.border }]} onPress={copySummary}>
-                    {copied ? <Check size={18} color={colors.success} /> : <Copy size={18} color={colors.text} />}
-                    <Text style={[styles.aiActionText, { color: colors.text }]}>{copied ? 'Copied' : 'Copy'}</Text>
-                  </TouchableOpacity>
-                  {!readOnly && (
-                    <TouchableOpacity style={[styles.aiAction, { backgroundColor: colors.primary, borderColor: colors.primary }]} onPress={insertAISummary}>
-                      <Plus size={18} color="#FFF" />
-                      <Text style={[styles.aiActionText, { color: '#FFF' }]}>Add to note</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity style={[styles.aiAction, { borderColor: colors.border }]} onPress={() => setShowAIModal(false)}>
-                    <Text style={[styles.aiActionText, { color: colors.textSecondary, marginLeft: 0 }]}>Close</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowAIModal(false)}
+        loading={isAISummarizing}
+        error={aiError}
+        result={aiResult}
+        onRetry={handleAISummarize}
+        onCopy={copySummary}
+        copied={copied}
+        onInsert={insertAISummary}
+        canInsert={!readOnly}
+        noteTitle={title}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  headerIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  toolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+  },
+  formatScroll: {
+    flex: 1,
+    flexGrow: 1,
+  },
   formatBar: {
     flexGrow: 0,
     borderBottomWidth: 1,
@@ -1144,8 +1126,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    marginTop: -8,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   tagChip: {
     flexDirection: 'row',
@@ -1167,9 +1148,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   statusText: {
-    flex: 1,
-    fontSize: 12,
-    marginHorizontal: 8,
+    flexShrink: 1,
+    fontSize: 13,
+    marginLeft: 12,
   },
   shareInput: {
     borderWidth: 1,
@@ -1217,8 +1198,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   headerTitle: {
@@ -1292,10 +1273,11 @@ const styles = StyleSheet.create({
   aiButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 12,
-    marginLeft: 'auto',
+    marginLeft: 8,
+    marginRight: 12,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -1316,9 +1298,10 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   titleInput: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 20,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 38,
+    marginBottom: 12,
   },
   contentInput: {
     fontSize: 18,
