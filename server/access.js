@@ -25,6 +25,7 @@ const NOTE_SELECT = `
            n.pinned, n.version, n.deleted_at, n.created_at, n.updated_at,
            owner.name AS owner_name, editor.name AS updated_by_name, n.updated_by,
            (SELECT count(*) FROM note_shares s WHERE s.note_id = n.id)::int AS share_count,
+           (SELECT count(*) FROM note_attachments a WHERE a.note_id = n.id)::int AS attachment_count,
            ${NOTE_ACCESS} AS access
       FROM notes n
       JOIN users owner ON owner.id = n.owner_id
@@ -50,6 +51,7 @@ function toNote(row) {
     updatedBy: row.updated_by,
     updatedByName: row.updated_by_name,
     shareCount: row.share_count,
+    attachmentCount: row.attachment_count,
     access: row.access,
   };
 }

@@ -14,7 +14,7 @@ function send(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-async function readBody(req) {
+async function readBody(req, { maxBytes = MAX_BODY_BYTES } = {}) {
   // Vercel parses JSON bodies for us; the local server does not.
   if (req.body !== undefined) {
     if (typeof req.body === 'string') {
@@ -30,7 +30,7 @@ async function readBody(req) {
   const chunks = [];
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw new HttpError(413, 'Request is too large');
+    if (size > maxBytes) throw new HttpError(413, 'Request is too large');
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString('utf8');
