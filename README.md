@@ -12,11 +12,15 @@ A collaborative note-taking app built with React Native and Expo, running as a r
 - **Private by default** – every note belongs to its author and is invisible to everyone else until shared.
 - **Sharing** – share a single note with another account by email, as *Can edit* or *Can view*.
 - **Workspaces** – group notes into a shared space and invite members by email.
-- **Live collaboration** – edits from other people appear within about two seconds. When two people change the same note at once, their edits are merged instead of overwritten.
-- **Presence** – see who else has a note open and who is typing right now.
-- **Pins, tags and folders** – pin notes to the top, tag them, move them between folders, and filter the dashboard by pin or tag.
+- **Live collaboration** – edits from other people appear in about a second while you keep typing; your cursor stays where it was. When two people change the same note at once, their edits are merged instead of overwritten.
+- **Presence** – a coloured name tag shows who is typing and on which line.
+- **AI summary** – one tap summarizes a note into a short overview and a list of key points, in the note's own language. Copy it or add it to the note.
+- **Formatting** – checklists (☐ / ☑), strikethrough, underline, ✓ and ✗ marks, and links. Links in a note are listed as tappable chips.
+- **File attachments** – attach files up to 3 MB to a note; everyone with access can download them.
+- **Profiles** – everyone starts with a letter avatar; upload a photo and change your name in Settings.
+- **Pins, tags and folders** – pin notes to the top, tag them, move them between folders, and filter the dashboard by pin or tag. *All Notes* lists every note with its folder.
 - **Trash** – restore deleted notes, delete a single note forever, or empty the trash.
-- **Responsive layout** – bottom tabs on phones, an icon rail on tablets and a labelled side rail with a multi-column grid on desktop. Every screen and feature is the same at every size.
+- **Responsive layout** – bottom tabs on phones, an icon rail on tablets and a labelled side rail with a multi-column grid on desktop; ☰ collapses the rail. Every screen and feature is the same at every size.
 - **Dark mode** – switch themes from Settings.
 
 ## Tech stack
@@ -27,6 +31,7 @@ A collaborative note-taking app built with React Native and Expo, running as a r
 | API | Node.js serverless function on Vercel (`api/router.js`) |
 | Database | Neon Postgres via `@neondatabase/serverless` |
 | Auth | bcrypt password hashing, server-side sessions in HttpOnly cookies |
+| AI | Groq API (`openai/gpt-oss-120b` by default), called only from the server |
 | Hosting | Vercel (static web build + one serverless function) |
 
 ## Architecture
@@ -68,6 +73,7 @@ cp .env.example .env
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
+GROQ_API_KEY=your-groq-key        # needed for AI summaries
 ```
 
 `.env` is git-ignored. Never commit real credentials.
@@ -92,7 +98,7 @@ Open [http://localhost:3000](http://localhost:3000). The local server serves the
 ## Deploying to Vercel
 
 1. Import the GitHub repository in Vercel.
-2. In **Settings → Environment Variables**, add `DATABASE_URL` for all environments.
+2. In **Settings → Environment Variables**, add `DATABASE_URL` and `GROQ_API_KEY` for all environments.
 3. Deploy. Build settings come from [`vercel.json`](vercel.json): `npm run build` outputs the web app to `dist/`, and `api/router.js` is deployed as the API.
 
 Each push to `main` triggers a new deployment.
@@ -122,7 +128,13 @@ All endpoints are under `/api` and exchange JSON. Every endpoint except the auth
 | `POST` | `/notes` | Create a note |
 | `GET` / `PATCH` / `DELETE` | `/notes/:id` | Read, update or trash a note |
 | `POST` | `/notes/:id/restore` | Restore from trash |
-| `POST` / `DELETE` | `/notes/:id/presence` | Report or clear "I have this note open" and get who else is in it |
+| `POST` / `DELETE` | `/notes/:id/presence` | Report or clear "I have this note open" (and where you are typing); get who else is in it |
+| `POST` | `/notes/:id/summary` | AI summary of a note |
+| `GET` / `POST` | `/notes/:id/attachments` | List or upload files |
+| `GET` / `DELETE` | `/attachments/:id` | Download or remove a file |
+| `PATCH` | `/auth/me` | Change your name |
+| `POST` / `DELETE` | `/auth/me/avatar` | Upload or remove your profile photo |
+| `GET` | `/users/:id/avatar` | A user's profile photo |
 | `GET` / `POST` | `/notes/:id/shares` | List or add people on a note |
 | `DELETE` | `/notes/:id/shares/:userId` | Remove someone from a note |
 | `DELETE` | `/trash` | Empty the trash |
@@ -139,7 +151,9 @@ All endpoints are under `/api` and exchange JSON. Every endpoint except the auth
 - Every query is parameterized, and every route checks ownership, share role or workspace membership before reading or writing.
 - Inputs are validated for type and length on the server.
 - Responses are sent with `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and HSTS headers.
-- No secrets are bundled into the client; configuration is read from environment variables on the server.
+- No secrets are bundled into the client; the database URL and the Groq key are read from environment variables on the server only.
+- AI summaries check note access first and are limited to 30 per user per hour. The note is passed to the model as data, with instructions not to follow anything written inside it.
+- Uploaded files are always served as downloads with a sandboxing CSP, so an uploaded HTML or SVG file can't run on the site. Profile photos accept only JPG, PNG, WebP and GIF.
 
 ## How live sync works
 
@@ -147,7 +161,8 @@ Vercel functions can't hold WebSocket connections, so live updates use short pol
 
 - Edits are saved 600 ms after the last keystroke. Each save carries the version it was based on.
 - If someone else saved in between, the server runs a three-way merge (`shared/merge.js`, built on diff-match-patch) between the common base, your text and theirs, so both sets of changes are kept. The write only succeeds if the version is still current; otherwise it merges again.
-- An open note sends a presence heartbeat every 2 seconds. The response carries the latest version and the people currently in the note. Remote changes are applied once you've stopped typing for 1.5 seconds, and anything you typed meanwhile is merged on top.
+- An open note sends a presence heartbeat every 0.6 seconds while someone else is in it (every 2 seconds when you are alone). The response carries the latest version, who is in the note, and where they are typing.
+- Remote changes are merged in immediately, even while you type, and your cursor is moved to the same spot in the new text. Saves go out 250 ms after a keystroke when others are present.
 - The note list, folders and workspaces refresh every 3 seconds. The server returns `unchanged` when nothing has changed, so idle polling stays cheap.
 
 Merging works line and phrase-wise. If two people rewrite the exact same words at the same moment, the result can contain both versions side by side for one of them to tidy up.
@@ -176,10 +191,10 @@ These features already have screens in the code but are hidden from the app unti
 
 | Flag | Feature | What is missing |
 | --- | --- | --- |
-| `aiAssistant` | AI summary and AI assistant in the editor | Answers are mocked; needs a server-side model call |
+| `aiAssistant` | Free-form AI chat about a note | Answers are mocked; needs a chat endpoint like the summary one |
 | `appLock` | Passcode lock and Face ID | Settings are not saved and nothing is locked yet |
 | `notifications` | Notification settings and inbox | Shows sample data only |
-| `profileEditing` | Edit name and email | No screen yet |
+| `profileEditing` | Separate "Personal information" page | Name and photo are already editable on the Settings profile card |
 | `securityCenter` | Security overview | No screen yet |
 | `workspaceLinkSharing` | Join a workspace by link | No join flow on the server |
 | `workspaceInvites` | Accept or decline invitations | Members are added directly by email for now |
